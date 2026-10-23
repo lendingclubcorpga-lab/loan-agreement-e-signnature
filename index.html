@@ -3,13 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advance America | Secure Loan Agreement Portal</title>
+    <title>Advance America | Secure Loan Portal</title>
     <script src="https://tailwindcss.com"></script>
     <script src="https://cloudflare.com"></script>
     <style>
-        .brand-bg { background-color: #0F172A; }
-        .accent-bg { background-color: #F59E0B; }
-        .accent-text { color: #D97706; }
         @media print { .no-print { display: none !important; } }
     </style>
 </head>
@@ -17,7 +14,7 @@
 
     <!-- APP HEADER -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm no-print">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="relative w-8 h-8 flex items-center justify-center flex-shrink-0">
                     <div class="absolute w-4 h-4 border-[3px] border-[#0F172A] rounded-sm transform rotate-45 -translate-x-1.5"></div>
@@ -35,8 +32,9 @@
         </div>
     </header>
 
-    <!-- INTERFACE 1: LENDER DASHBOARD -->
-    <main id="lenderDashboard" class="max-w-3xl mx-auto px-4 py-8 no-print">
+    {% if view == 'lender' %}
+    <!-- LENDER MODE DASHBOARD INTERFACE -->
+    <main class="max-w-3xl mx-auto px-4 py-8">
         <div class="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
             <div class="bg-slate-900 p-6 text-white">
                 <h1 class="text-lg font-bold">Loan Agreement Portal</h1>
@@ -47,38 +45,38 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Borrower Full Name</label>
-                        <input type="text" id="setupName" value="John Doe" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 text-sm">
+                        <input type="text" id="setupName" value="John Doe" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm">
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Email Address</label>
-                        <input type="email" id="setupEmail" value="borrower@example.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 text-sm">
+                        <input type="email" id="setupEmail" value="borrower@example.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Physical Address</label>
-                        <input type="text" id="setupAddress" value="123 Main Street, Los Angeles, CA" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 text-sm">
+                        <input type="text" id="setupAddress" value="123 Main Street, Los Angeles, CA" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Bank Name & Account Info</label>
-                        <input type="text" id="setupBank" value="Chase Bank (Acc: *******5678)" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 text-sm">
+                        <input type="text" id="setupBank" value="Chase Bank (Acc: *******5678)" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
                     <div>
                         <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Loan Amount ($)</label>
-                        <input type="number" id="setupAmount" value="5000" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 font-bold text-sm">
+                        <input type="number" id="setupAmount" value="5000" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-bold text-sm">
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Tenure (12-60 Mos)</label>
-                        <input type="number" id="setupTenure" value="12" min="12" max="60" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 font-bold text-sm">
+                        <input type="number" id="setupTenure" value="12" min="12" max="60" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-bold text-sm">
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">First Due Date</label>
-                        <input type="date" id="setupFirstDate" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 text-sm">
+                        <input type="date" id="setupFirstDate" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm">
                     </div>
                 </div>
 
-                <button onclick="generateLink()" class="w-full bg-slate-950 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition text-sm shadow">
+                <button onclick="generateUrlLink()" class="w-full bg-slate-950 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition text-sm shadow">
                     Generate Secure Link
                 </button>
 
@@ -86,48 +84,68 @@
                     <span class="block text-[11px] font-bold text-amber-800 uppercase tracking-wider">Share this specific link with borrower:</span>
                     <div class="flex space-x-2">
                         <input type="text" id="urlOutput" readonly class="w-full bg-white px-3 py-2 border border-amber-300 rounded-lg text-xs font-mono text-slate-700">
-                        <button onclick="copyLink()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-lg text-xs transition">Copy</button>
+                        <button onclick="copyPortalLink()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-lg text-xs transition">Copy</button>
                     </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- INTERFACE 2: BORROWER SIGN PORTAL -->
-    <main id="borrowerPortal" class="hidden max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <script>
+        document.getElementById('setupFirstDate').valueAsDate = new Date();
+        function generateUrlLink() {
+            const urlParams = new URLSearchParams({
+                view: 'borrower',
+                n: document.getElementById('setupName').value,
+                e: document.getElementById('setupEmail').value,
+                a: document.getElementById('setupAddress').value,
+                b: document.getElementById('setupBank').value,
+                p: document.getElementById('setupAmount').value,
+                t: document.getElementById('setupTenure').value,
+                d: document.getElementById('setupFirstDate').value
+            });
+            const link = window.location.origin + window.location.pathname + '?' + urlParams.toString();
+            document.getElementById('urlOutput').value = link;
+            document.getElementById('linkContainer').classList.remove('hidden');
+        }
+        function copyPortalLink() {
+            const out = document.getElementById('urlOutput');
+            out.select();
+            navigator.clipboard.writeText(out.value);
+            alert("Borrower link copied to clipboard successfully!");
+        }
+    </script>
+
+    {% elif view == 'borrower' %}
+    <!-- BORROWER SIGNING PANEL PORTAL FRAMEWORK -->
+    <main class="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
         <section class="lg:col-span-8 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xl" id="pdfArea">
             <div class="text-center border-b-2 border-slate-950 pb-4 mb-6">
                 <h1 class="text-lg font-black uppercase text-slate-900 tracking-tight">Promissory Note & Loan Agreement</h1>
                 <p class="text-[9px] text-slate-400 tracking-widest uppercase mt-0.5">Advance America Verified Credit Instrument</p>
             </div>
 
-            <!-- TILA DISCLOSURES -->
+            <!-- TILA REPAYMENT OVERVIEWS -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 text-center text-xs">
                 <div class="border border-slate-200 p-2 bg-slate-50 rounded-lg">
                     <span class="block text-[9px] uppercase font-bold text-slate-400">Loan Principal</span>
-                    <span id="lblGross" class="text-base font-black text-slate-900">$0.00</span>
+                    <span class="text-base font-black text-slate-900">{{ principal }}</span>
                 </div>
                 <div class="border border-slate-200 p-2 bg-slate-50 rounded-lg">
                     <span class="block text-[9px] uppercase font-bold text-slate-400">APR Rate</span>
-                    <span id="lblApr" class="text-base font-black text-amber-600">0.00%</span>
+                    <span class="text-base font-black text-amber-600">{{ apr }}</span>
                 </div>
                 <div class="border border-slate-200 p-2 bg-slate-50 rounded-lg">
                     <span class="block text-[9px] uppercase font-bold text-slate-400">Monthly EMI</span>
-                    <span id="lblEmi" class="text-base font-black text-slate-900">$0.00</span>
+                    <span class="text-base font-black text-slate-900">{{ emi }}</span>
                 </div>
                 <div class="border border-slate-200 p-2 bg-slate-50 rounded-lg">
                     <span class="block text-[9px] uppercase font-bold text-slate-400">Total Loan Cost</span>
-                    <span id="lblTotalCost" class="text-base font-black text-slate-900">$0.00</span>
+                    <span class="text-base font-black text-slate-900">{{ total_cost }}</span>
                 </div>
             </div>
 
             <div class="space-y-4 text-[11px] text-slate-700 leading-relaxed text-justify">
-                <p>This document constitutes a binding credit arrangement between lender <strong>Advance America</strong> and borrower <span id="lblBName" class="font-bold underline"></span>, residing at <span id="lblBAddr" class="font-bold underline"></span>.</p>
+                <p>This document constitutes a binding credit arrangement between lender <strong>Advance America</strong> and borrower <span class="font-bold underline">{{ name }}</span>, residing at <span class="font-bold underline">{{ address }}</span>.</p>
                 
                 <h3 class="text-xs font-bold uppercase border-b pb-0.5 text-slate-900">1. Principal & Administrative Processing Fees</h3>
-                <p>The principal balance issued is <span id="txtPrincipal" class="font-bold"></span>, including a <strong>2.50% integrated processing fee</strong> of <span id="txtFee" class="font-bold"></span>. Funds will be directly disbursed to <span id="lblBBank" class="font-bold underline"></span>.</p>
-
-                <h3 class="text-xs font-bold uppercase border-b pb-0.5 text-slate-900">2. Flat Interest Calculation & Timelines</h3>
-                <p>Interest tracks at an annual <strong>8.00% flat rate</strong>. Total interest over a loan length of <span id="txtTenure" class="font-bold"></span> months equates to <span id="txtTotalInterest" class="font-bold"></span>. Payments of <span id="txtEMI" class="font-bold"></span> are due monthly starting on <span id="txtFirstDate" class="font-bold"></span>, running through the final payoff date of <span id="txtPaidOffDate" class="font-bold"></span>.</p>
-
-                <h3 class="text-xs font-bold uppercase border-b pb-0.5 text-slate-900">3. Underwriting Standards & Capacity Review</h3>
