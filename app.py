@@ -4,28 +4,33 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from streamlit_drawable_canvas import st_canvas
 
-# Page Layout Parameters setup
+# Force wide-screen professional dashboard viewport
 st.set_page_config(page_title="Advance America | E-Sign Portal", layout="wide")
 
-# Custom UI Branding Color Theme Injector Layer
+# Injection of custom CSS styling rules to align branding perfectly
 st.markdown("""
     <style>
-        .main-header { font-size: 26px; font-weight: 900; color: #0F172A; text-transform: uppercase; letter-spacing: -0.5px; }
-        .accent-text { color: #EAB308; font-weight: 900; }
-        .tila-box { background-color: #F8FAFC; border: 1px solid #E2E8F0; padding: 15px; border-radius: 12px; text-align: center; }
-        .tila-val { font-size: 20px; font-weight: 800; color: #0F172A; }
-        .disclosure-notice { background-color: #FFFBEB; border-left: 4px solid #F59E0B; padding: 12px; border-radius: 4px; font-size: 13px; color: #78350F; }
+        .main-header { font-size: 28px; font-weight: 900; color: #0F172A; text-transform: uppercase; letter-spacing: -0.5px; display: flex; align-items: center; }
+        .accent-text { color: #F59E0B; margin-left: 6px; }
+        .tila-box { background-color: #F8FAFC; border: 1px solid #E2E8F0; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .tila-title { font-size: 10px; font-weight: 700; color: #64748B; uppercase; tracking-wider; margin-bottom: 4px; }
+        .tila-val { font-size: 22px; font-weight: 900; color: #0F172A; }
+        .disclosure-notice { background-color: #FFFBEB; border-left: 4px solid #F59E0B; padding: 16px; border-radius: 8px; font-size: 13px; color: #78350F; line-height: 1.5; text-align: justify; }
+        .contract-title { font-size: 20px; font-weight: 900; color: #0F172A; text-transform: uppercase; text-align: center; tracking-wide; }
+        .contract-subtitle { font-size: 11px; color: #94A3B8; text-transform: uppercase; text-align: center; letter-spacing: 1px; margin-top: -8px; margin-bottom: 20px; }
+        @media print {
+            header, [data-testid="stSidebar"], .no-print { display: none !important; }
+            .print-area { display: block !important; width: 100% !important; }
+        }
     </style>
 """, unsafe_allow_html=True)
 
-# ----------------------------------------------------
-# Core Financial Calculation Matrix Engine Framework
-# ----------------------------------------------------
+# Newton-Raphson calculation engine for exact APR
 def calculate_apr(principal, fee, emi, tenure):
     net_received = principal - fee
     if net_received <= 0 or emi <= 0:
         return 0.0
-    r = 0.01  # Newton-Raphson initial numerical approximation guess value
+    r = 0.01 
     for _ in range(100):
         f = sum(emi / ((1 + r) ** m) for m in range(1, tenure + 1)) - net_received
         df = sum(-(m * emi) / ((1 + r) ** (m + 1)) for m in range(1, tenure + 1))
@@ -37,150 +42,130 @@ def calculate_apr(principal, fee, emi, tenure):
         r = r_next
     return r * 12 * 100
 
-# ----------------------------------------------------
-# Dynamic Route State Navigation Framework Menu Tab Layer
-# ----------------------------------------------------
-if "view_mode" not in st.session_state:
-    st.session_state["view_mode"] = "Lender Admin Setup"
-
-# Read incoming query URL targets safely if someone opens a generated borrower link
-query_params = st.query_params
-if "view" in query_params and query_params["view"] == "borrower":
-    st.session_state["view_mode"] = "Borrower Portal E-Sign"
-
-# Brand Top Header Banner View Layout Section
+# Top Branding Panel Alignment Block
 col_logo, col_trust = st.columns([2, 1])
 with col_logo:
-    st.markdown('<div class="main-header">✨ Advance <span class="accent-text">America</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">🔹 Advance <span class="accent-text">America</span></div>', unsafe_allow_html=True)
 with col_trust:
-    st.markdown("<div style='text-align: right; font-size: 11px; font-weight: bold; color: #94A3B8; margin-top:10px;'>FDIC INSURED • BBB A+ RATED</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: right; font-size: 11px; font-weight: bold; color: #94A3B8; margin-top:14px; letter-spacing: 0.5px;'>🛡️ FDIC INSURED • BBB A+ COMPLIANT</div>", unsafe_allow_html=True)
 
 st.divider()
 
+# Setup URL parsing tracking logic rules to cleanly switch display modes automatically
+query_params = st.query_params
+is_borrower_view = "view" in query_params and query_params["view"] == "borrower"
+
 # ----------------------------------------------------
-# MODE 1: LENDER ADMIN CONFIGURATION SETUP SCREEN
+# 🏢 INTERFACE MODE A: LENDER ADMIN CONSOLE
 # ----------------------------------------------------
-if st.session_state["view_mode"] == "Lender Admin Setup":
-    st.subheader("📋 Loan Agreement Generation Console")
-    st.caption("Input borrower parameters to compile custom digital credit contracts.")
+if not is_borrower_view:
+    st.subheader("📋 Loan Agreement Parameters Configuration Dashboard")
+    st.caption("Enter borrower underwriting metrics below to compile a legal digital signing portal link.")
 
     with st.form("lender_generation_form"):
         col1, col2 = st.columns(2)
         with col1:
             name = st.text_input("Borrower Full Name", value="John Doe")
-            email = st.text_input("Borrower Email Address", value="borrower@example.com")
-            bank = st.text_input("Disbursement Bank Info", value="Chase Bank (Acc: *******5678)")
+            email = st.text_input("Borrower Email Address", value="john.doe@example.com")
+            bank = st.text_input("Disbursement Bank Account Info", value="Chase Bank (Acc: *******5678)")
         with col2:
-            address = st.text_input("Physical Address Location", value="123 Main Street, Los Angeles, CA")
-            amount = st.number_input("Loan Principal Amount ($)", min_value=1000, max_value=100000, value=5000, step=500)
-            tenure = st.slider("Loan Repayment Tenure (Months)", min_value=12, max_value=60, value=24)
+            address = st.text_input("Physical Residential Address", value="123 Financial Way, San Francisco, CA")
+            amount = st.number_input("Principal Loan Amount ($)", min_value=1000, max_value=250000, value=10000, step=1000)
+            tenure = st.slider("Amortization Tenure Duration (Months)", min_value=12, max_value=60, value=24)
             
-        first_payment_date = st.date_input("First Monthly Due Milestone Date", datetime.today())
-        submit_btn = st.form_submit_button("Compile Secure Borrower Contract Link")
+        first_payment_date = st.date_input("First Installment Payment Milestone Due Date", datetime.today() + relativedelta(months=1))
+        submit_btn = st.form_submit_button("Generate Secure Borrower Signature URL Link")
 
     if submit_btn:
-        # Build encrypted/structured tracking queries parameter extension string link strings
-        params = f"?view=borrower&n={name.replace(' ', '+')}&a={address.replace(' ', '+')}&b={bank.replace(' ', '+')}&p={amount}&t={tenure}&d={first_payment_date.strftime('%Y-%m-%d')}"
-        base_url = "http://localhost:8501/" # Swap to your deployment server link upon production rollout launch
-        shareable_link = base_url + params
+        # Construct clean parameter tracking codes natively recognizable by Streamlit Community Cloud
+        encoded_link = (
+            f"https://{st.runtime.get_instance().get_client_id if hasattr(st.runtime, 'get_instance') else 'advanceamericaloan-agreement-e-sign'}"
+            f".streamlit.app/?view=borrower"
+            f"&n={name.replace(' ', '+')}"
+            f"&a={address.replace(' ', '+')}"
+            f"&b={bank.replace(' ', '+')}"
+            f"&p={amount}"
+            f"&t={tenure}"
+            f"&d={first_payment_date.strftime('%Y-%m-%d')}"
+        )
         
-        st.success("🎉 Secure Signature Link Generated Successfully!")
-        st.code(shareable_link, language="text")
-        st.info("Copy the generated framework string web route path link configuration block rule above and message it to your borrower client profile.")
+        st.success("🚀 Secure E-Sign Link Formed Successfully!")
+        st.info("Copy the generated dynamic system endpoint route string box link below and forward it directly onto your customer:")
+        st.code(encoded_link, language="text")
 
 # ----------------------------------------------------
-# MODE 2: BORROWER SIGNING PANEL & CONTRACT CONSOLE VIEW
+# 🖋️ INTERFACE MODE B: BORROWER SECURE E-SIGN PORTAL
 # ----------------------------------------------------
-elif st.session_state["view_mode"] == "Borrower Portal E-Sign":
-    # Parse parameter data metrics strings directly out of the query links securely
-    p_name = query_params.get("n", "Borrower")
-    p_addr = query_params.get("a", "N/A")
-    p_bank = query_params.get("b", "N/A")
-    p_principal = float(query_params.get("p", 0))
-    p_tenure = int(query_params.get("t", 12))
+else:
+    # Safely pull transaction metrics directly from URL attributes
+    p_name = query_params.get("n", "John Doe").replace("+", " ")
+    p_addr = query_params.get("a", "123 Financial Way, San Francisco, CA").replace("+", " ")
+    p_bank = query_params.get("b", "First National Bank (Acc: *******4321)").replace("+", " ")
+    p_principal = float(query_params.get("p", 10000))
+    p_tenure = int(query_params.get("t", 24))
     p_date_str = query_params.get("d", datetime.today().strftime("%Y-%m-%d"))
 
-    # Financial Underwriting Formula Execution Layer Blocks
+    # Execute math equations server-side
     fee = p_principal * 0.025
     total_interest = p_principal * 0.08 * (p_tenure / 12)
     total_repayment = p_principal + total_interest
     emi = total_repayment / p_tenure
     apr = calculate_apr(p_principal, fee, emi, p_tenure)
-
     start_date = datetime.strptime(p_date_str, "%Y-%m-%d")
-    
-    st.subheader("📜 Digital Promissory Note & Commercial Credit Instrument")
-    st.caption("Review terms below, complete the dynamic interactive validation e-signature input process to execute contract distribution rules.")
 
-    # High Fidelity Truth-in-Lending Act Grid Matrix
-    m1, m2, m3, m4 = st.columns(4)
-    with m1: st.markdown(f'<div class="tila-box"><div>GROSS PRINCIPAL</div><div class="tila-val">${p_principal:,.2f}</div></div>', unsafe_allow_html=True)
-    with m2: st.markdown(f'<div class="tila-box"><div>ANNUAL PERCENTAGE APR</div><div class="tila-val" style="color:#D97706;">{apr:.2f}%</div></div>', unsafe_allow_html=True)
-    with m3: st.markdown(f'<div class="tila-box"><div>MONTHLY EMI DUE</div><div class="tila-val" style="color:#2563EB;">${emi:,.2f}</div></div>', unsafe_allow_html=True)
-    with m4: st.markdown(f'<div class="tila-box"><div>TOTAL COST OF LOAN</div><div class="tila-val">${total_repayment:,.2f}</div></div>', unsafe_allow_html=True)
+    # Document Layout View Panel split structure
+    doc_col, action_col = st.columns([7, 4], gap="large")
 
-    st.write("")
+    with doc_col:
+        st.markdown('<div class="print-area">', unsafe_allow_html=True)
+        st.markdown('<div class="contract-title">Promissory Note & Secured Loan Agreement</div>', unsafe_allow_html=True)
+        st.markdown('<div class="contract-subtitle">Executed under federal truth-in-lending parameters (TILA disclosures)</div>', unsafe_allow_html=True)
 
-    # Agreement Legal Framework Body Text
-    st.markdown(f"""
-    This dynamic electronic financing covenant outlines binding rules governing account distributions executed between **Advance America Financial Outlets** (Lender) and **{p_name}** (Borrower), residing at location destination **{p_addr}**.
-    
-    * **1. Fees & Distribution Protocols:** The net principal threshold is defined as **${p_principal:,.2f}**. An operational processing capitalization fee of **2.50%** (**${fee:,.2f}**) is calculated and bundled natively into the standard loan tracking matrix. Disbursements automatically clear down to the routing track at **{p_bank}**.
-    * **2. Interest Structuring Rule:** Interest accumulation traces structural intervals mapped precisely against a fixed baseline **8.00% annual flat rate yield index constraint**. Total interest yield over the note length of **{p_tenure} months** equals **${total_interest:,.2f}**.
-    """)
+        # Truth In Lending Grid Metrics Row
+        t1, t2, t3, t4 = st.columns(4)
+        with t1: st.markdown(f'<div class="tila-box"><div class="tila-title">GROSS PRINCIPAL</div><div class="tila-val">${p_principal:,.2f}</div></div>', unsafe_allow_html=True)
+        with t2: st.markdown(f'<div class="tila-box"><div class="tila-title">ANNUAL PERCENTAGE (APR)</div><div class="tila-val" style="color:#D97706;">{apr:.2f}%</div></div>', unsafe_allow_html=True)
+        with t3: st.markdown(f'<div class="tila-box"><div class="tila-title">MONTHLY PAYMENT (EMI)</div><div class="tila-val" style="color:#2563EB;">${emi:,.2f}</div></div>', unsafe_allow_html=True)
+        with t4: st.markdown(f'<div class="tila-box"><div class="tila-title">TOTAL REPAYMENT COST</div><div class="tila-val">${total_repayment:,.2f}</div></div>', unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="disclosure-notice">
-        ⚠️ <strong>UNDERWRITING CAPACITY CREDIT RISK MARKER NOTICE:</strong> Final validation approvals and account transaction settlement releases remain contingent on the verification of active debt capabilities and background security metrics. Systemic defaults will generate immediate negative markers onto credit tracking reporting platforms.
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.write("")
-    st.markdown("#### 📅 Amortization Payment Milestone Breakdown Schedule")
-
-    # Dynamic Schedule Matrix Compilation Loop Engine Block
-    amortization_rows = []
-    running_balance = total_repayment
-    p_step = p_principal / p_tenure
-    i_step = total_interest / p_tenure
-    current_date = start_date
-
-    for idx in range(1, p_tenure + 1):
-        running_balance -= emi
-        amortization_rows.append([
-            idx,
-            current_date.strftime("%b %d, %Y"),
-            f"${emi:,.2f}",
-            f"${p_step:,.2f}",
-            f"${i_step:,.2f}",
-            f"${max(0.0, running_balance):,.2f}"
-        ])
-        current_date += relativedelta(months=1)
-
-    df_schedule = pd.DataFrame(amortization_rows, columns=["Month #", "Due Date Milestone", "Installment (EMI)", "Principal Share", "Flat Interest", "Remaining Balance"])
-    st.dataframe(df_schedule, use_container_width=True, hide_index=True)
-
-    st.divider()
-
-    # Interactive Signature Box Layout
-    col_sig, col_download = st.columns([2, 1])
-    with col_sig:
-        st.markdown("##### 🖋️ Secure Borrower Attestation E-Sign Pad Zone")
-        canvas_result = st_canvas(
-            fill_color="rgba(255, 255, 255, 0)",
-            stroke_width=3,
-            stroke_color="#000000",
-            background_color="#F8FAFC",
-            height=120,
-            width=400,
-            drawing_mode="freedraw",
-            key="signature_pad",
-        )
-    
-    with col_download:
-        st.markdown("##### 🖨️ Contract Finalization")
-        st.caption("Once you sign cleanly within the touch capture canvas window, print or save a record tracking copy directly below.")
+        st.write("")
         
-        # Verify canvas payload interactions to check for user signature execution status
-        if canvas_result.image_data is not None and canvas_result.image_data.any():
-            # Standard formatting logic configuration rule enabling print output capture structures
+        # Legal boilerplate terms
+        st.markdown(f"""
+        This Agreement is entered into and executed on this current calendar timeline milestone date, by and between the creditor, 
+        **Advance America Financial Outlets**, and the underwritten borrower, **{p_name}**, residing at address locations **{p_addr}**.
+        
+        ###### 1. Amount Financed & Administrative Capitalized Processing Premiums
+        The core principal balance advanced under this framework is **${p_principal:,.2f}**. The Borrower acknowledges that an integrated 
+        fixed **2.50% processing fee** amounting to **${fee:,.2f}** has been capitalized and included within the structured financing note frame. 
+        Account disbursements are directly synchronized with the verified clearing account at **{p_bank}**.
+        
+        ###### 2. Interest Rate Calculations & Amortization Payment Tracks
+        Interest on this note is calculated using a **8.00% Flat Interest Rate per annum**. The total interest calculated over the dynamic 
+        tenure of **{p_tenure} months** amounts to **${total_interest:,.2f}**. Consequently, the regular scheduled monthly installment payment 
+        is established at **${emi:,.2f}** per month, starting on the first installment milestone due date of **{start_date.strftime('%B %d, %Y')}**.
+        """)
+
+        st.markdown(f"""
+        <div class="disclosure-notice">
+            ⚠️ <strong>IMPORTANT DISCLOSURE ON CREDIT EVALUATION & CAPACITY:</strong> Advance America utilizes credit underwriting 
+            frameworks to monitor risk allowances. Final approval parameters remain contingent on continuous real-time analysis of the 
+            borrower's recurring debt-to-income capabilities. Defaulters will face immediate negative credit bureau reporting markers.
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.write("")
+        st.markdown("###### 3. Month-By-Month Customized Financial Amortization Schedule")
+
+        # Compile data frame loops
+        schedule_rows = []
+        running_bal = total_repayment
+        p_step = p_principal / p_tenure
+        i_step = total_interest / p_tenure
+        curr_due_date = start_date
+
+        for m_idx in range(1, p_tenure + 1):
+            running_bal -= emi
+            if running_bal < 0.01: running_bal = 0
+            schedule_rows.append({
+                "Inst. #": m_idx,
