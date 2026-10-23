@@ -1,7 +1,9 @@
 import calendar
+import json
 from datetime import date
 
 import pandas as pd
+from cryptography.fernet import Fernet
 import streamlit as st
 from fpdf import FPDF
 
@@ -195,8 +197,83 @@ def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows,
     return bytes(pdf.output())
 
 
+
+def secret(key):
+    try:
+        return st.secrets[key]
+    except Exception:
+        return None
+
+
+FKEY = secret("FERNET_KEY")
+ADMIN_PW = secret("ADMIN_PASSWORD")
+APP_URL = (secret("APP_URL") or "").rstrip("/")
+token = st.query_params.get("t")
+
+
+def summary(principal, months, first, r, rows):
+    a, b, c = st.columns(3)
+    a.metric("Monthly installment", money(r["emi"]))
+    b.metric("APR", f"{r['apr'] * 100:.2f}%")
+    c.metric("Total of payments", money(r["total"]))
+    a.metric("Processing fee", money(r["fee"]))
+    b.metric("Interest", money(r["interest"]))
+    c.metric("Amount financed", money(r["net"]))
+    st.write(f"Total cost of loan **{money(r['finance_charge'])}**. First installment **{first:%B %d, %Y}**. "
+             f"Final installment and paid-off date **{r['last']:%B %d, %Y}**.")
+    df = pd.DataFrame(rows, columns=["Month", "Due date", "Payment", "Principal", "Interest", "Balance"])
+    st.dataframe(df.style.format({c: "${:,.2f}" for c in ["Payment", "Principal", "Interest", "Balance"]}),
+                 hide_index=True, width="stretch")
+
+
+# ---------------------------------------------------------------- borrower page
+if token:
+    if not FKEY:
+        st.error("This signing page is not configured yet.")
+        st.stop()
+    try:
+        d = json.loads(Fernet(FKEY).decrypt(token.encode()))
+    except Exception:
+        st.error("This link is not valid. Ask the lender for a new one.")
+        st.stop()
+    if date.fromisoformat(d["exp"]) < date.today():
+        st.error("This link has expired. Ask the lender for a new one.")
+        st.stop()
+    first = date.fromisoformat(d["first"])
+    r, rows = build(d["principal"], d["months"], first)
+    st.title("Loan Agreement")
+    st.caption(f"{d['biz']} - {d['lic']}")
+    st.write(f"Prepared for **{d['borrower']}**. Please review everything below, then sign at the bottom.")
+    summary(d["principal"], d["months"], first, r, rows)
+    with st.expander("Terms and conditions", expanded=False):
+        for i, (t, body) in enumerate(TERMS, 1):
+            st.markdown(f"**{i}. {t}**  \n{body}")
+    st.subheader("Sign")
+    with st.container(border=True):
+        sig = st.text_input("Type your full legal name to sign")
+        ok = st.checkbox("I have read the disclosures and terms and agree to sign electronically.")
+        match = sig.strip().lower() == d["borrower"].strip().lower()
+        if sig.strip() and not match:
+            st.warning("The name must match the borrower name on this agreement.")
+        if ok and match:
+            st.success("Signature captured.")
+            pdf = make_pdf(d["biz"], d["lic"], d["borrower"], d["addr"], d["email"], d["principal"],
+                           d["months"], first, r, rows, sig.strip())
+            st.download_button("Download signed agreement (PDF)", pdf, file_name="loan_agreement.pdf", mime="application/pdf")
+        else:
+            st.info("Download unlocks after your signature is captured.")
+    st.stop()
+
+# ---------------------------------------------------------------- lender page
 st.title("Loan Agreement Generator")
-st.caption("Enter your own business details. This tool does not add any third-party trust seals.")
+st.caption("Lender console. Enter your own business details. No third-party trust seals are added.")
+
+if not (FKEY and ADMIN_PW):
+    st.error("Setup needed: add ADMIN_PASSWORD and FERNET_KEY to the app's secrets (see README).")
+    st.stop()
+if st.text_input("Lender password", type="password") != ADMIN_PW:
+    st.info("Enter the lender password to create agreement links.")
+    st.stop()
 
 with st.sidebar:
     st.header("Lender")
@@ -206,6 +283,7 @@ with st.sidebar:
     principal = st.number_input("Loan amount ($)", min_value=100.0, max_value=250000.0, value=5000.0, step=100.0)
     months = st.slider("Tenure (months)", 12, 60, 12)
     first = st.date_input("First installment date", value=add_months(date.today(), 1), min_value=date.today())
+    days = st.slider("Link valid for (days)", 1, 30, 7)
 
 st.subheader("Borrower")
 c1, c2 = st.columns(2)
@@ -214,29 +292,20 @@ email = c2.text_input("Email")
 addr = st.text_input("Address")
 
 r, rows = build(principal, months, first)
+summary(principal, months, first, r, rows)
 
-st.subheader("Loan summary")
-a, b, c = st.columns(3)
-a.metric("Monthly EMI", money(r["emi"]))
-b.metric("APR", f"{r['apr'] * 100:.2f}%")
-c.metric("Total of payments", money(r["total"]))
-a.metric("Processing fee", money(r["fee"]))
-b.metric("Interest", money(r["interest"]))
-c.metric("Net cash", money(r["net"]))
-st.write(f"Total cost of loan **{money(r['finance_charge'])}**. First installment **{first:%B %d, %Y}**. Paid off **{r['last']:%B %d, %Y}**.")
-
-df = pd.DataFrame(rows, columns=["Month", "Due date", "Payment", "Principal", "Interest", "Balance"])
-st.dataframe(df.style.format({c: "${:,.2f}" for c in ["Payment", "Principal", "Interest", "Balance"]}),
-             hide_index=True, use_container_width=True)
-
-st.subheader("Borrower signature")
-with st.container(border=True):
-    sig = st.text_input("Type full legal name to sign")
-    ok = st.checkbox("I have read the disclosures and terms and agree to sign electronically.")
-    ready = bool(borrower.strip() and email.strip() and addr.strip() and ok and len(sig.strip()) >= 3)
-    if ready:
-        st.success("Signature captured.")
-        pdf = make_pdf(biz, lic, borrower.strip(), addr.strip(), email.strip(), principal, months, first, r, rows, sig.strip())
-        st.download_button("Download signed agreement (PDF)", pdf, file_name="loan_agreement.pdf", mime="application/pdf")
+st.subheader("Create signing link")
+if st.button("Generate link", type="primary"):
+    if not (borrower.strip() and email.strip() and addr.strip() and biz.strip()):
+        st.error("Fill in the business name and the borrower's name, email and address first.")
     else:
-        st.info("Fill in the borrower details, tick the box and type your name. Download unlocks after the signature is captured.")
+        payload = dict(biz=biz.strip(), lic=lic.strip(), borrower=borrower.strip(), email=email.strip(),
+                       addr=addr.strip(), principal=principal, months=months, first=first.isoformat(),
+                       exp=date.fromordinal(date.today().toordinal() + days).isoformat())
+        tok = Fernet(FKEY).encrypt(json.dumps(payload).encode()).decode()
+        base = APP_URL or "https://YOUR-APP-URL.streamlit.app"
+        st.session_state["link"] = f"{base}/?t={tok}"
+if st.session_state.get("link"):
+    st.code(st.session_state["link"], language=None)
+    st.caption("Send this link to the borrower. It is encrypted, cannot be edited, and expires on the date set. "
+               "Signed copies are not stored here; the borrower downloads the PDF and should send it back to you.")
