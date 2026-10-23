@@ -13,14 +13,20 @@ st.markdown("""
         .main-header { font-size: 28px; font-weight: 900; color: #0F172A; text-transform: uppercase; letter-spacing: -0.5px; display: flex; align-items: center; }
         .accent-text { color: #F59E0B; margin-left: 6px; }
         .tila-box { background-color: #F8FAFC; border: 1px solid #E2E8F0; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .tila-title { font-size: 10px; font-weight: 700; color: #64748B; uppercase; tracking-wider; margin-bottom: 4px; }
+        .tila-title { font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; tracking-wider; margin-bottom: 4px; }
         .tila-val { font-size: 22px; font-weight: 900; color: #0F172A; }
         .disclosure-notice { background-color: #FFFBEB; border-left: 4px solid #F59E0B; padding: 16px; border-radius: 8px; font-size: 13px; color: #78350F; line-height: 1.5; text-align: justify; }
         .contract-title { font-size: 20px; font-weight: 900; color: #0F172A; text-transform: uppercase; text-align: center; tracking-wide; }
         .contract-subtitle { font-size: 11px; color: #94A3B8; text-transform: uppercase; text-align: center; letter-spacing: 1px; margin-top: -8px; margin-bottom: 20px; }
+        .print-btn {
+            display: block; width: 100%; background-color: #F59E0B; color: #0F172A !important; 
+            font-weight: 900; text-align: center; padding: 12px; border-radius: 12px; 
+            text-decoration: none; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .print-btn:hover { background-color: #D97706; }
         @media print {
-            header, [data-testid="stSidebar"], .no-print { display: none !important; }
-            .print-area { display: block !important; width: 100% !important; }
+            header, [data-testid="stSidebar"], .no-print, [data-testid="stForm"] { display: none !important; }
+            div[data-testid="stColumn"] { width: 100% !important; flex: 1 1 auto !important; }
         }
     </style>
 """, unsafe_allow_html=True)
@@ -43,7 +49,7 @@ def calculate_apr(principal, fee, emi, tenure):
     return r * 12 * 100
 
 # Top Branding Panel Alignment Block
-col_logo, col_trust = st.columns([2, 1])
+col_logo, col_trust = st.columns(2)
 with col_logo:
     st.markdown('<div class="main-header">🔹 Advance <span class="accent-text">America</span></div>', unsafe_allow_html=True)
 with col_trust:
@@ -51,7 +57,7 @@ with col_trust:
 
 st.divider()
 
-# Setup URL parsing tracking logic rules to cleanly switch display modes automatically
+# Setup URL parsing tracking logic rules
 query_params = st.query_params
 is_borrower_view = "view" in query_params and query_params["view"] == "borrower"
 
@@ -77,10 +83,8 @@ if not is_borrower_view:
         submit_btn = st.form_submit_button("Generate Secure Borrower Signature URL Link")
 
     if submit_btn:
-        # Construct clean parameter tracking codes natively recognizable by Streamlit Community Cloud
         encoded_link = (
-            f"https://{st.runtime.get_instance().get_client_id if hasattr(st.runtime, 'get_instance') else 'advanceamericaloan-agreement-e-sign'}"
-            f".streamlit.app/?view=borrower"
+            f"https://streamlit.app"
             f"&n={name.replace(' ', '+')}"
             f"&a={address.replace(' ', '+')}"
             f"&b={bank.replace(' ', '+')}"
@@ -90,14 +94,13 @@ if not is_borrower_view:
         )
         
         st.success("🚀 Secure E-Sign Link Formed Successfully!")
-        st.info("Copy the generated dynamic system endpoint route string box link below and forward it directly onto your customer:")
+        st.info("Copy the generated link below and forward it directly to your customer:")
         st.code(encoded_link, language="text")
 
 # ----------------------------------------------------
 # 🖋️ INTERFACE MODE B: BORROWER SECURE E-SIGN PORTAL
 # ----------------------------------------------------
 else:
-    # Safely pull transaction metrics directly from URL attributes
     p_name = query_params.get("n", "John Doe").replace("+", " ")
     p_addr = query_params.get("a", "123 Financial Way, San Francisco, CA").replace("+", " ")
     p_bank = query_params.get("b", "First National Bank (Acc: *******4321)").replace("+", " ")
@@ -113,15 +116,12 @@ else:
     apr = calculate_apr(p_principal, fee, emi, p_tenure)
     start_date = datetime.strptime(p_date_str, "%Y-%m-%d")
 
-    # Document Layout View Panel split structure
-    doc_col, action_col = st.columns([7, 4], gap="large")
+    doc_col, action_col = st.columns([7, 5], gap="large")
 
     with doc_col:
-        st.markdown('<div class="print-area">', unsafe_allow_html=True)
         st.markdown('<div class="contract-title">Promissory Note & Secured Loan Agreement</div>', unsafe_allow_html=True)
         st.markdown('<div class="contract-subtitle">Executed under federal truth-in-lending parameters (TILA disclosures)</div>', unsafe_allow_html=True)
 
-        # Truth In Lending Grid Metrics Row
         t1, t2, t3, t4 = st.columns(4)
         with t1: st.markdown(f'<div class="tila-box"><div class="tila-title">GROSS PRINCIPAL</div><div class="tila-val">${p_principal:,.2f}</div></div>', unsafe_allow_html=True)
         with t2: st.markdown(f'<div class="tila-box"><div class="tila-title">ANNUAL PERCENTAGE (APR)</div><div class="tila-val" style="color:#D97706;">{apr:.2f}%</div></div>', unsafe_allow_html=True)
@@ -130,7 +130,6 @@ else:
 
         st.write("")
         
-        # Legal boilerplate terms
         st.markdown(f"""
         This Agreement is entered into and executed on this current calendar timeline milestone date, by and between the creditor, 
         **Advance America Financial Outlets**, and the underwritten borrower, **{p_name}**, residing at address locations **{p_addr}**.
@@ -143,7 +142,7 @@ else:
         ###### 2. Interest Rate Calculations & Amortization Payment Tracks
         Interest on this note is calculated using a **8.00% Flat Interest Rate per annum**. The total interest calculated over the dynamic 
         tenure of **{p_tenure} months** amounts to **${total_interest:,.2f}**. Consequently, the regular scheduled monthly installment payment 
-        is established at **${emi:,.2f}** per month, starting on the first installment milestone due date of **{start_date.strftime('%B %d, %Y')}**.
+        is established at **${emi:,.2f}** per month, commencing on the first installment milestone due date of **{start_date.strftime('%B %d, %Y')}**.
         """)
 
         st.markdown(f"""
@@ -157,7 +156,6 @@ else:
         st.write("")
         st.markdown("###### 3. Month-By-Month Customized Financial Amortization Schedule")
 
-        # Compile data frame loops
         schedule_rows = []
         running_bal = total_repayment
         p_step = p_principal / p_tenure
@@ -169,3 +167,6 @@ else:
             if running_bal < 0.01: running_bal = 0
             schedule_rows.append({
                 "Inst. #": m_idx,
+                "Due Date Milestone": curr_due_date.strftime("%b %d, %Y"),
+                "Installment (EMI)": f"${emi:.2f}",
+                "Principal Portion": f"${p_step:.2f}",
