@@ -3,6 +3,7 @@ import base64
 import io
 import json
 import os
+import tempfile
 import zlib
 from datetime import date
 
@@ -16,7 +17,70 @@ from fpdf import FPDF
 
 st.set_page_config(page_title="Loan Agreement Generator", page_icon="📄", layout="centered")
 
-sig_pad = components.declare_component("signature_pad", path=str(Path(__file__).parent / "signature_pad"))
+SIGNATURE_HTML = r"""<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+#wrap{padding:2px}
+canvas{display:block;width:100%;height:180px;border:2px dashed #f59a1b;border-radius:6px;background:#fff;touch-action:none;cursor:crosshair;box-sizing:border-box}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:#7a8799}
+button{font:inherit;font-size:13px;padding:5px 14px;border-radius:4px;border:1px solid #9aa6b8;background:transparent;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid #f59a1b}
+</style></head>
+<body><div id="wrap"><canvas id="c"></canvas>
+<div class="bar"><span id="hint">Sign above with your finger or mouse</span><button id="clr" type="button">Clear</button></div></div>
+<script>
+(function(){
+function post(m){m.isStreamlitMessage=true;window.parent.postMessage(m,"*");}
+var cv=document.getElementById("c"),ctx=cv.getContext("2d"),hint=document.getElementById("hint");
+var drawing=false,dirty=false,lastW=0;
+function fit(){post({type:"streamlit:setFrameHeight",height:document.body.scrollHeight+6});}
+function size(){
+  var r=cv.getBoundingClientRect(),d=Math.min(window.devicePixelRatio||1,2);
+  cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);
+  ctx.setTransform(d,0,0,d,0,0);ctx.lineWidth=2.4;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#0c1b33";
+  lastW=r.width;
+}
+function pos(e){var r=cv.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
+function send(v){post({type:"streamlit:componentValue",value:v,dataType:"json"});}
+function exportPng(){
+  var o=document.createElement("canvas");o.width=cv.width;o.height=cv.height;
+  var c=o.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,o.width,o.height);c.drawImage(cv,0,0);
+  return o.toDataURL("image/png");
+}
+cv.addEventListener("pointerdown",function(e){
+  e.preventDefault();cv.setPointerCapture(e.pointerId);drawing=true;
+  var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+0.01,p.y+0.01);ctx.stroke();
+});
+cv.addEventListener("pointermove",function(e){
+  if(!drawing)return;e.preventDefault();var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);
+});
+function up(){
+  if(!drawing)return;drawing=false;dirty=true;hint.textContent="Signature captured. Draw again or press Clear to redo.";send(exportPng());
+}
+cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
+document.getElementById("clr").addEventListener("click",function(){
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);ctx.restore();
+  dirty=false;hint.textContent="Sign above with your finger or mouse";send(null);
+});
+window.addEventListener("message",function(e){
+  if(e.data&&e.data.type==="streamlit:render"){
+    if(Math.abs(cv.getBoundingClientRect().width-lastW)>2){size();if(dirty){dirty=false;send(null);}}
+    fit();
+  }
+});
+window.addEventListener("resize",function(){if(Math.abs(cv.getBoundingClientRect().width-lastW)>2){size();if(dirty){dirty=false;hint.textContent="Sign above with your finger or mouse";send(null);}}});
+size();
+post({type:"streamlit:componentReady",apiVersion:1});fit();
+})();
+</script></body></html>
+"""
+
+_sig_dir = Path(tempfile.gettempdir()) / "signature_pad_v1"
+_sig_dir.mkdir(parents=True, exist_ok=True)
+(_sig_dir / "index.html").write_text(SIGNATURE_HTML, encoding="utf-8")
+sig_pad = components.declare_component("signature_pad", path=str(_sig_dir))
 
 NAVY = (12, 27, 51)
 AMBER = (245, 154, 27)
