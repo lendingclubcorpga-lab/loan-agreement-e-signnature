@@ -1,172 +1,134 @@
-import streamlit as st
+import calendar
+from datetime import date
+
 import pandas as pd
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
-from streamlit_drawable_canvas import st_canvas
+import streamlit as st
 
-# Force wide-screen professional dashboard viewport
-st.set_page_config(page_title="Advance America | E-Sign Portal", layout="wide")
+st.set_page_config(page_title="Installment Loan Agreement Generator", page_icon="📄", layout="centered")
 
-# Injection of custom CSS styling rules to align branding perfectly
-st.markdown("""
-    <style>
-        .main-header { font-size: 28px; font-weight: 900; color: #0F172A; text-transform: uppercase; letter-spacing: -0.5px; display: flex; align-items: center; }
-        .accent-text { color: #F59E0B; margin-left: 6px; }
-        .tila-box { background-color: #F8FAFC; border: 1px solid #E2E8F0; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .tila-title { font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; tracking-wider; margin-bottom: 4px; }
-        .tila-val { font-size: 22px; font-weight: 900; color: #0F172A; }
-        .disclosure-notice { background-color: #FFFBEB; border-left: 4px solid #F59E0B; padding: 16px; border-radius: 8px; font-size: 13px; color: #78350F; line-height: 1.5; text-align: justify; }
-        .contract-title { font-size: 20px; font-weight: 900; color: #0F172A; text-transform: uppercase; text-align: center; tracking-wide; }
-        .contract-subtitle { font-size: 11px; color: #94A3B8; text-transform: uppercase; text-align: center; letter-spacing: 1px; margin-top: -8px; margin-bottom: 20px; }
-        .print-btn {
-            display: block; width: 100%; background-color: #F59E0B; color: #0F172A !important; 
-            font-weight: 900; text-align: center; padding: 12px; border-radius: 12px; 
-            text-decoration: none; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }
-        .print-btn:hover { background-color: #D97706; }
-        @media print {
-            header, [data-testid="stSidebar"], .no-print, [data-testid="stForm"] { display: none !important; }
-            div[data-testid="stColumn"] { width: 100% !important; flex: 1 1 auto !important; }
-        }
-    </style>
-""", unsafe_allow_html=True)
+LENDER_DEFAULT = "Harborline Credit (SAMPLE)"
+FEE_RATE = 0.025        # administrative processing fee, % of principal
+ANNUAL_RATE = 0.08      # flat annual interest
 
-# Newton-Raphson calculation engine for exact APR
-def calculate_apr(principal, fee, emi, tenure):
-    net_received = principal - fee
-    if net_received <= 0 or emi <= 0:
-        return 0.0
-    r = 0.01 
-    for _ in range(100):
-        f = sum(emi / ((1 + r) ** m) for m in range(1, tenure + 1)) - net_received
-        df = sum(-(m * emi) / ((1 + r) ** (m + 1)) for m in range(1, tenure + 1))
-        if df == 0: break
-        r_next = r - f / df
-        if abs(r_next - r) < 1e-6:
-            r = r_next
+
+def add_months(d: date, n: int) -> date:
+    y = d.year + (d.month - 1 + n) // 12
+    m = (d.month - 1 + n) % 12 + 1
+    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
+
+
+def money(x: float) -> str:
+    return f"${x:,.2f}"
+
+
+def solve_apr(net: float, emi: float, months: int) -> float:
+    """Newton-Raphson on the monthly rate; returns nominal APR (monthly rate x 12)."""
+    i = 0.01
+    for _ in range(200):
+        f = sum(emi / (1 + i) ** k for k in range(1, months + 1)) - net
+        df = sum(-k * emi / (1 + i) ** (k + 1) for k in range(1, months + 1))
+        nxt = i - f / df
+        if abs(nxt - i) < 1e-14:
+            i = nxt
             break
-        r = r_next
-    return r * 12 * 100
+        i = nxt
+    return i * 12
 
-# Top Branding Panel Alignment Block
-col_logo, col_trust = st.columns(2)
-with col_logo:
-    st.markdown('<div class="main-header">🔹 Advance <span class="accent-text">America</span></div>', unsafe_allow_html=True)
-with col_trust:
-    st.markdown("<div style='text-align: right; font-size: 11px; font-weight: bold; color: #94A3B8; margin-top:14px; letter-spacing: 0.5px;'>🛡️ FDIC INSURED • BBB A+ COMPLIANT</div>", unsafe_allow_html=True)
 
-st.divider()
-
-# Setup URL parsing tracking logic rules
-query_params = st.query_params
-is_borrower_view = "view" in query_params and query_params["view"] == "borrower"
-
-# ----------------------------------------------------
-# 🏢 INTERFACE MODE A: LENDER ADMIN CONSOLE
-# ----------------------------------------------------
-if not is_borrower_view:
-    st.subheader("📋 Loan Agreement Parameters Configuration Dashboard")
-    st.caption("Enter borrower underwriting metrics below to compile a legal digital signing portal link.")
-
-    with st.form("lender_generation_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            name = st.text_input("Borrower Full Name", value="John Doe")
-            email = st.text_input("Borrower Email Address", value="john.doe@example.com")
-            bank = st.text_input("Disbursement Bank Account Info", value="Chase Bank (Acc: *******5678)")
-        with col2:
-            address = st.text_input("Physical Residential Address", value="123 Financial Way, San Francisco, CA")
-            amount = st.number_input("Principal Loan Amount ($)", min_value=1000, max_value=250000, value=10000, step=1000)
-            tenure = st.slider("Amortization Tenure Duration (Months)", min_value=12, max_value=60, value=24)
-            
-        first_payment_date = st.date_input("First Installment Payment Milestone Due Date", datetime.today() + relativedelta(months=1))
-        submit_btn = st.form_submit_button("Generate Secure Borrower Signature URL Link")
-
-    if submit_btn:
-        encoded_link = (
-            f"https://streamlit.app"
-            f"&n={name.replace(' ', '+')}"
-            f"&a={address.replace(' ', '+')}"
-            f"&b={bank.replace(' ', '+')}"
-            f"&p={amount}"
-            f"&t={tenure}"
-            f"&d={first_payment_date.strftime('%Y-%m-%d')}"
+def build(principal: float, months: int, first: date):
+    fee = principal * FEE_RATE
+    interest = principal * ANNUAL_RATE * months / 12
+    emi = (principal + interest) / months
+    net = principal - fee
+    apr = solve_apr(net, emi, months)
+    rows, bal = [], principal + interest
+    for k in range(months):
+        bal = max(bal - emi, 0.0)
+        if abs(bal) < 1e-9:
+            bal = 0.0
+        rows.append(
+            {
+                "Month": k + 1,
+                "Due date": add_months(first, k).strftime("%b %d, %Y"),
+                "Total payment": emi,
+                "Principal share": principal / months,
+                "Interest share": interest / months,
+                "Remaining balance": bal,
+            }
         )
-        
-        st.success("🚀 Secure E-Sign Link Formed Successfully!")
-        st.info("Copy the generated link below and forward it directly to your customer:")
-        st.code(encoded_link, language="text")
+    return dict(fee=fee, interest=interest, emi=emi, net=net, apr=apr,
+                total=emi * months, finance_charge=interest + fee,
+                last=add_months(first, months - 1)), pd.DataFrame(rows)
 
-# ----------------------------------------------------
-# 🖋️ INTERFACE MODE B: BORROWER SECURE E-SIGN PORTAL
-# ----------------------------------------------------
-else:
-    p_name = query_params.get("n", "John Doe").replace("+", " ")
-    p_addr = query_params.get("a", "123 Financial Way, San Francisco, CA").replace("+", " ")
-    p_bank = query_params.get("b", "First National Bank (Acc: *******4321)").replace("+", " ")
-    p_principal = float(query_params.get("p", 10000))
-    p_tenure = int(query_params.get("t", 24))
-    p_date_str = query_params.get("d", datetime.today().strftime("%Y-%m-%d"))
 
-    # Execute math equations server-side
-    fee = p_principal * 0.025
-    total_interest = p_principal * 0.08 * (p_tenure / 12)
-    total_repayment = p_principal + total_interest
-    emi = total_repayment / p_tenure
-    apr = calculate_apr(p_principal, fee, emi, p_tenure)
-    start_date = datetime.strptime(p_date_str, "%Y-%m-%d")
+st.warning("SAMPLE TEMPLATE. Not a real loan offer. A real lender must use its own name, licensing and legal review.")
+st.title("Installment Loan Agreement Generator")
 
-    doc_col, action_col = st.columns([7, 5], gap="large")
+with st.sidebar:
+    st.header("Loan inputs")
+    lender = st.text_input("Lender name", LENDER_DEFAULT)
+    principal = st.number_input("Principal ($)", min_value=100.0, max_value=100000.0, value=5000.0, step=100.0)
+    months = st.slider("Term (months)", 3, 60, 12)
+    today = date.today()
+    first = st.date_input("First payment date", value=add_months(today, 1))
 
-    with doc_col:
-        st.markdown('<div class="contract-title">Promissory Note & Secured Loan Agreement</div>', unsafe_allow_html=True)
-        st.markdown('<div class="contract-subtitle">Executed under federal truth-in-lending parameters (TILA disclosures)</div>', unsafe_allow_html=True)
+st.subheader("Borrower details")
+c1, c2 = st.columns(2)
+name = c1.text_input("Full name", "Jordan A. Sample")
+email = c2.text_input("Email", "jordan.sample@example.com")
+address = st.text_input("Address", "100 Example Street, Sampletown, ST 00000")
+st.caption("Do not enter real bank account or routing numbers here. Collecting them needs proper security, encryption and compliance work.")
 
-        t1, t2, t3, t4 = st.columns(4)
-        with t1: st.markdown(f'<div class="tila-box"><div class="tila-title">GROSS PRINCIPAL</div><div class="tila-val">${p_principal:,.2f}</div></div>', unsafe_allow_html=True)
-        with t2: st.markdown(f'<div class="tila-box"><div class="tila-title">ANNUAL PERCENTAGE (APR)</div><div class="tila-val" style="color:#D97706;">{apr:.2f}%</div></div>', unsafe_allow_html=True)
-        with t3: st.markdown(f'<div class="tila-box"><div class="tila-title">MONTHLY PAYMENT (EMI)</div><div class="tila-val" style="color:#2563EB;">${emi:,.2f}</div></div>', unsafe_allow_html=True)
-        with t4: st.markdown(f'<div class="tila-box"><div class="tila-title">TOTAL REPAYMENT COST</div><div class="tila-val">${total_repayment:,.2f}</div></div>', unsafe_allow_html=True)
+r, df = build(principal, months, first)
 
-        st.write("")
-        
-        st.markdown(f"""
-        This Agreement is entered into and executed on this current calendar timeline milestone date, by and between the creditor, 
-        **Advance America Financial Outlets**, and the underwritten borrower, **{p_name}**, residing at address locations **{p_addr}**.
-        
-        ###### 1. Amount Financed & Administrative Capitalized Processing Premiums
-        The core principal balance advanced under this framework is **${p_principal:,.2f}**. The Borrower acknowledges that an integrated 
-        fixed **2.50% processing fee** amounting to **${fee:,.2f}** has been capitalized and included within the structured financing note frame. 
-        Account disbursements are directly synchronized with the verified clearing account at **{p_bank}**.
-        
-        ###### 2. Interest Rate Calculations & Amortization Payment Tracks
-        Interest on this note is calculated using a **8.00% Flat Interest Rate per annum**. The total interest calculated over the dynamic 
-        tenure of **{p_tenure} months** amounts to **${total_interest:,.2f}**. Consequently, the regular scheduled monthly installment payment 
-        is established at **${emi:,.2f}** per month, commencing on the first installment milestone due date of **{start_date.strftime('%B %d, %Y')}**.
-        """)
+st.subheader("Federal loan disclosures")
+a, b = st.columns(2)
+a.metric("APR", f"{r['apr'] * 100:.2f}%")
+b.metric("Finance charge", money(r["finance_charge"]))
+a.metric("Amount financed", money(r["net"]))
+b.metric("Total of payments", money(r["total"]))
 
-        st.markdown(f"""
-        <div class="disclosure-notice">
-            ⚠️ <strong>IMPORTANT DISCLOSURE ON CREDIT EVALUATION & CAPACITY:</strong> Advance America utilizes credit underwriting 
-            frameworks to monitor risk allowances. Final approval parameters remain contingent on continuous real-time analysis of the 
-            borrower's recurring debt-to-income capabilities. Defaulters will face immediate negative credit bureau reporting markers.
-        </div>
-        """, unsafe_allow_html=True)
+st.write(
+    f"Monthly payment **{money(r['emi'])}** for **{months}** months. "
+    f"First payment **{first.strftime('%B %d, %Y')}**, final payment **{r['last'].strftime('%B %d, %Y')}**. "
+    f"Processing fee {money(r['fee'])} is deducted from proceeds."
+)
 
-        st.write("")
-        st.markdown("###### 3. Month-By-Month Customized Financial Amortization Schedule")
+st.subheader("Payment schedule")
+st.dataframe(
+    df.style.format({c: "${:,.2f}" for c in df.columns if c not in ("Month", "Due date")}),
+    hide_index=True,
+    use_container_width=True,
+)
 
-        schedule_rows = []
-        running_bal = total_repayment
-        p_step = p_principal / p_tenure
-        i_step = total_interest / p_tenure
-        curr_due_date = start_date
+st.subheader("Credit evaluation and capacity")
+st.info(
+    f"IMPORTANT DISCLOSURE ON CREDIT EVALUATION AND CAPACITY: {lender} uses credit reporting "
+    "verification systems to evaluate consumer risk. Final funding authorization and release of funds "
+    "remain contingent on a real-time review of the borrower's recurring debt-to-income performance. "
+    "Default events will trigger reporting of derogatory marks to credit bureaus."
+)
 
-        for m_idx in range(1, p_tenure + 1):
-            running_bal -= emi
-            if running_bal < 0.01: running_bal = 0
-            schedule_rows.append({
-                "Inst. #": m_idx,
-                "Due Date Milestone": curr_due_date.strftime("%b %d, %Y"),
-                "Installment (EMI)": f"${emi:.2f}",
-                "Principal Portion": f"${p_step:.2f}",
+st.subheader("Borrower e-sign zone")
+with st.container(border=True):
+    sig = st.text_input("Type full name to sign")
+    agree = st.checkbox("I have read the disclosures and terms and agree to sign electronically.")
+    signed = bool(agree and len(sig.strip()) >= 3)
+    if signed:
+        st.markdown(f"### _{sig.strip()}_")
+        st.success("Signature captured. Download unlocked.")
+    else:
+        st.error("Download is locked until an electronic signature has been captured.")
+
+    text = f"""{lender.upper()} - INSTALLMENT LOAN AGREEMENT (SAMPLE)
+Borrower: {name} | {email} | {address}
+Principal: {money(principal)} | Fee: {money(r['fee'])} | Net cash: {money(r['net'])}
+Flat interest (8%): {money(r['interest'])} | Monthly payment: {money(r['emi'])} x {months}
+APR: {r['apr'] * 100:.2f}% | Finance charge: {money(r['finance_charge'])} | Total of payments: {money(r['total'])}
+First payment: {first:%B %d, %Y} | Final payment: {r['last']:%B %d, %Y}
+
+SCHEDULE
+{df.to_csv(index=False)}
+Signed electronically by: {sig.strip() if signed else '[unsigned]'}
+"""
+    st.download_button("Download signed copy", text, file_name="loan_agreement_sample.txt", disabled=not signed)
