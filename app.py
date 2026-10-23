@@ -205,7 +205,7 @@ def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows,
     kv(pdf, "Email", email)
 
     h(pdf, "2. Federal loan disclosures")
-    for k, v in [("Annual percentage rate (APR)", f"{r['9.73'] * 100:.2f}%"),
+    for k, v in [("Annual percentage rate (APR)", f"{r['APR'] * 100:.2f}%"),
                  ("Finance charge", money(r["finance_charge"])),
                  ("Amount financed (net cash to Borrower)", money(r["net"])),
                  ("Total of payments", money(r["total"]))]:
