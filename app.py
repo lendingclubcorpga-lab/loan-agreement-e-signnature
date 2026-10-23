@@ -1,13 +1,22 @@
 import calendar
+import base64
+import io
 import json
+import os
+import zlib
 from datetime import date
 
 import pandas as pd
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import streamlit as st
+import streamlit.components.v1 as components
+from pathlib import Path
 from fpdf import FPDF
 
 st.set_page_config(page_title="Loan Agreement Generator", page_icon="📄", layout="centered")
+
+sig_pad = components.declare_component("signature_pad", path=str(Path(__file__).parent / "signature_pad"))
 
 NAVY = (12, 27, 51)
 AMBER = (245, 154, 27)
@@ -39,9 +48,9 @@ def solve_apr(net, emi, months):
     return i * 12
 
 
-def build(principal, months, first):
+def build(principal, months, first, rate=ANNUAL_RATE):
     fee = principal * FEE_RATE
-    interest = principal * ANNUAL_RATE * months / 12
+    interest = principal * rate * months / 12
     emi = (principal + interest) / months
     net = principal - fee
     apr = solve_apr(net, emi, months)
@@ -51,7 +60,7 @@ def build(principal, months, first):
         if abs(bal) < 1e-9:
             bal = 0.0
         rows.append([k + 1, add_months(first, k).strftime("%b %d, %Y"), emi, principal / months, interest / months, bal])
-    r = dict(fee=fee, interest=interest, emi=emi, net=net, apr=apr, total=emi * months,
+    r = dict(rate=rate, fee=fee, interest=interest, emi=emi, net=net, apr=apr, total=emi * months,
              finance_charge=interest + fee, last=add_months(first, months - 1))
     return r, rows
 
@@ -61,14 +70,14 @@ TERMS = [
     ("Processing fee", "A one-time administrative processing fee is included in the financing and is deducted from the loan proceeds. It is part of the finance charge and is not refundable once funds are released."),
     ("Interest", "Interest is a flat rate calculated on the original principal for the full term. It does not reduce as installments are paid."),
     ("Credit evaluation and repayment capacity", "The Lender may review credit reports and the Borrower's income and debts to assess repayment capacity. Funding depends on that review and on the Borrower's ability to repay. The Lender may decline or cancel an application before funds are released."),
-    ("Late payment", "If an installment is not received within the grace period stated by the Lender, the Lender may charge a late fee allowed by applicable law. Late fee amount:$35."),
-    ("Prepayment", "The Borrower may prepay all or part of the loan at any time. Prepayment terms and any refund of unearned charges follow applicable law "),
+    ("Late payment", "If an installment is not received within the grace period stated by the Lender, the Lender may charge a late fee allowed by applicable law. Late fee amount: ____________ (Lender to complete)."),
+    ("Prepayment", "The Borrower may prepay all or part of the loan at any time. Prepayment terms and any refund of unearned charges follow applicable law: ____________ (Lender to complete)."),
     ("Default", "The Borrower is in default if any installment is more than the stated number of days past due, if information given in the application is materially false, or if the Borrower becomes insolvent. On default the Lender may require immediate payment of the unpaid balance, subject to notice rights under applicable law."),
     ("Credit reporting", "The Lender may report the account and any default to consumer reporting agencies, which can lower the Borrower's credit score."),
     ("Collection costs", "Where permitted by law, the Borrower is responsible for reasonable collection costs and court costs on a defaulted account."),
     ("Electronic signature and records", "The Borrower agrees to sign and receive this Agreement electronically. An electronic signature has the same effect as a handwritten signature. The Borrower may request a paper copy."),
     ("Privacy and data", "The Lender uses the Borrower's personal information only to evaluate, service and collect this loan and as required by law."),
-    ("Governing law", "This Agreement is governed by the laws and any applicable federal law, including the Truth in Lending Act."),
+    ("Governing law", "This Agreement is governed by the laws of: ____________ (Lender to complete) and any applicable federal law, including the Truth in Lending Act."),
     ("Entire agreement and severability", "This is the complete agreement between the parties. If any part is found unenforceable, the rest remains in effect. Changes must be in writing and signed by both parties."),
 ]
 
@@ -141,7 +150,7 @@ def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows,
     h(pdf, "3. Loan terms")
     for k, v in [("Principal", money(principal)),
                  ("Processing fee (2.50%, included in loan)", money(r["fee"])),
-                 ("Flat interest (8.00% per year)", money(r["interest"])),
+                 (f"Flat interest ({r['rate'] * 100:.2f}% per year)", money(r["interest"])),
                  ("Total cost of loan (interest + fee)", money(r["finance_charge"])),
                  ("Tenure", f"{months} months"),
                  ("Monthly installment (EMI)", money(r["emi"])),
@@ -180,15 +189,17 @@ def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows,
         pdf.multi_cell(0, 4.6, body, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(1.5)
 
-    if pdf.get_y() > 235:
+    if pdf.get_y() > 220:
         pdf.add_page()
     h(pdf, "6. Signatures")
-    pdf.set_font("Helvetica", "I", 20)
-    pdf.cell(95, 12, signer, border="B")
+    y = pdf.get_y()
+    pdf.image(io.BytesIO(signer), x=14, y=y, w=62)
+    pdf.set_y(y + 22)
+    pdf.set_draw_color(120, 130, 145)
     pdf.set_font("Helvetica", "", 9)
-    pdf.cell(6, 12, "")
-    pdf.cell(0, 12, f"Signed electronically on {date.today():%B %d, %Y}", border="B", new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(95, 5, f"Borrower: {borrower}")
+    pdf.cell(95, 6, f"Borrower: {borrower}", border="T")
+    pdf.cell(6, 6, "")
+    pdf.cell(0, 6, f"Signed electronically on {date.today():%B %d, %Y}", border="T", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(10)
     pdf.cell(95, 12, "", border="B")
     pdf.cell(6, 12, "")
@@ -208,7 +219,25 @@ def secret(key):
 FKEY = secret("FERNET_KEY")
 ADMIN_PW = secret("ADMIN_PASSWORD")
 APP_URL = (secret("APP_URL") or "").rstrip("/")
-token = st.query_params.get("t")
+token = st.query_params.get("k") or st.query_params.get("t")
+
+
+def pack(d):
+    """Compact, encrypted, tamper-proof token (AES-GCM over zlib-compressed fields)."""
+    p = d["principal"]
+    raw = json.dumps([d["biz"], d["lic"], d["borrower"], d["email"], d["addr"], int(p) if p == int(p) else p,
+                      d["months"], d["rate"], date.fromisoformat(d["first"]).toordinal(),
+                      date.fromisoformat(d["exp"]).toordinal()], separators=(",", ":")).encode()
+    nonce = os.urandom(12)
+    ct = AESGCM(base64.urlsafe_b64decode(FKEY)).encrypt(nonce, zlib.compress(raw, 9), None)
+    return base64.urlsafe_b64encode(nonce + ct).decode().rstrip("=")
+
+
+def unpack(tok):
+    b = base64.urlsafe_b64decode(tok + "=" * (-len(tok) % 4))
+    v = json.loads(zlib.decompress(AESGCM(base64.urlsafe_b64decode(FKEY)).decrypt(b[:12], b[12:], None)))
+    return dict(biz=v[0], lic=v[1], borrower=v[2], email=v[3], addr=v[4], principal=v[5], months=v[6],
+                rate=v[7], first=date.fromordinal(v[8]).isoformat(), exp=date.fromordinal(v[9]).isoformat())
 
 
 def summary(principal, months, first, r, rows):
@@ -232,7 +261,10 @@ if token:
         st.error("This signing page is not configured yet.")
         st.stop()
     try:
-        d = json.loads(Fernet(FKEY).decrypt(token.encode()))
+        try:
+            d = unpack(token)
+        except Exception:
+            d = json.loads(Fernet(FKEY).decrypt(token.encode()))  # links made by the earlier version
     except Exception:
         st.error("This link is not valid. Ask the lender for a new one.")
         st.stop()
@@ -240,7 +272,7 @@ if token:
         st.error("This link has expired. Ask the lender for a new one.")
         st.stop()
     first = date.fromisoformat(d["first"])
-    r, rows = build(d["principal"], d["months"], first)
+    r, rows = build(d["principal"], d["months"], first, d.get("rate", 8.0) / 100)
     st.title("Loan Agreement")
     st.caption(f"{d['biz']} - {d['lic']}")
     st.write(f"Prepared for **{d['borrower']}**. Please review everything below, then sign at the bottom.")
@@ -250,15 +282,14 @@ if token:
             st.markdown(f"**{i}. {t}**  \n{body}")
     st.subheader("Sign")
     with st.container(border=True):
-        sig = st.text_input("Type your full legal name to sign")
+        st.write("Draw your signature in the box with your finger or mouse.")
+        sig = sig_pad(key="sig_pad", default=None)
         ok = st.checkbox("I have read the disclosures and terms and agree to sign electronically.")
-        match = sig.strip().lower() == d["borrower"].strip().lower()
-        if sig.strip() and not match:
-            st.warning("The name must match the borrower name on this agreement.")
-        if ok and match:
+        if ok and sig:
             st.success("Signature captured.")
+            png = base64.b64decode(sig.split(",", 1)[1])
             pdf = make_pdf(d["biz"], d["lic"], d["borrower"], d["addr"], d["email"], d["principal"],
-                           d["months"], first, r, rows, sig.strip())
+                           d["months"], first, r, rows, png)
             st.download_button("Download signed agreement (PDF)", pdf, file_name="loan_agreement.pdf", mime="application/pdf")
         else:
             st.info("Download unlocks after your signature is captured.")
@@ -282,6 +313,8 @@ with st.sidebar:
     st.header("Loan")
     principal = st.number_input("Loan amount ($)", min_value=100.0, max_value=250000.0, value=5000.0, step=100.0)
     months = st.slider("Tenure (months)", 12, 60, 12)
+    rate = st.number_input("Flat interest rate (% per year)", min_value=1.0, max_value=36.0, value=8.0, step=0.25,
+                           help="Flat rate on the original principal. Check the maximum rate allowed in your state.")
     first = st.date_input("First installment date", value=add_months(date.today(), 1), min_value=date.today())
     days = st.slider("Link valid for (days)", 1, 30, 7)
 
@@ -291,7 +324,7 @@ borrower = c1.text_input("Full name")
 email = c2.text_input("Email")
 addr = st.text_input("Address")
 
-r, rows = build(principal, months, first)
+r, rows = build(principal, months, first, rate / 100)
 summary(principal, months, first, r, rows)
 
 st.subheader("Create signing link")
@@ -300,12 +333,27 @@ if st.button("Generate link", type="primary"):
         st.error("Fill in the business name and the borrower's name, email and address first.")
     else:
         payload = dict(biz=biz.strip(), lic=lic.strip(), borrower=borrower.strip(), email=email.strip(),
-                       addr=addr.strip(), principal=principal, months=months, first=first.isoformat(),
+                       addr=addr.strip(), principal=principal, months=months, rate=rate, first=first.isoformat(),
                        exp=date.fromordinal(date.today().toordinal() + days).isoformat())
-        tok = Fernet(FKEY).encrypt(json.dumps(payload).encode()).decode()
+        tok = pack(payload)
         base = APP_URL or "https://YOUR-APP-URL.streamlit.app"
-        st.session_state["link"] = f"{base}/?t={tok}"
+        st.session_state["link"] = f"{base}/?k={tok}"
+        st.session_state.pop("short", None)
 if st.session_state.get("link"):
     st.code(st.session_state["link"], language=None)
     st.caption("Send this link to the borrower. It is encrypted, cannot be edited, and expires on the date set. "
                "Signed copies are not stored here; the borrower downloads the PDF and should send it back to you.")
+    if st.button("Make shorter link"):
+        try:
+            import urllib.parse
+            import urllib.request
+            api = "https://is.gd/create.php?format=simple&url=" + urllib.parse.quote(st.session_state["link"], safe="")
+            short = urllib.request.urlopen(api, timeout=10).read().decode().strip()
+            if not short.startswith("http"):
+                raise ValueError(short)
+            st.session_state["short"] = short
+        except Exception:
+            st.warning("The shortener could not be reached. Paste the link above into tinyurl.com or bit.ly instead.")
+    if st.session_state.get("short"):
+        st.code(st.session_state["short"], language=None)
+        st.caption("Short link. It redirects to the long link above, so both work the same way.")
