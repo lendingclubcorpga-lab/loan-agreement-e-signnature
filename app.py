@@ -43,7 +43,7 @@ function size(){
   lastW=r.width;
 }
 function pos(e){var r=cv.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
-function send(v){post({type:"streamlit:componentValue",value:v,dataType:"json"});}
+function send(v){post({type:"streamlit:setComponentValue",value:v,dataType:"json"});}
 function exportPng(){
   var o=document.createElement("canvas");o.width=cv.width;o.height=cv.height;
   var c=o.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,o.width,o.height);c.drawImage(cv,0,0);
