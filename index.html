@@ -3,141 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advance America | Secure Loan Agreement & E-Sign Portal</title>
+    <title>Advance America | Secure Loan Agreement Portal</title>
     <script src="https://tailwindcss.com"></script>
-    <!-- ReportLab-like client-side high fidelity PDF generator engine -->
     <script src="https://cloudflare.com"></script>
     <style>
-        .brand-dark { color: #0F172A; }
-        .brand-primary { color: #1E293B; }
-        .brand-accent { color: #EAB308; }
-        .bg-brand-dark { background-color: #0F172A; }
-        .bg-brand-accent { background-color: #EAB308; }
-        .border-brand-accent { border-color: #EAB308; }
+        .brand-bg { background-color: #0F172A; }
+        .accent-bg { background-color: #F59E0B; }
+        .accent-text { color: #D97706; }
         @media print { .no-print { display: none !important; } }
     </style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-900 antialiased min-h-screen">
+<body class="bg-slate-100 font-sans text-slate-900 antialiased min-h-screen">
 
-    <!-- BRAND HEADER (Always visible) -->
+    <!-- APP HEADER -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <!-- Advance America Logo Alignment -->
             <div class="flex items-center space-x-3">
-                <div class="relative w-9 h-9 flex items-center justify-center flex-shrink-0">
-                    <div class="absolute w-4 h-4 border-[3.5px] border-[#0F172A] rounded-sm transform rotate-45 -translate-x-1.5"></div>
-                    <div class="absolute w-4 h-4 border-[3.5px] border-[#EAB308] rounded-sm transform rotate-45 translate-x-1.5"></div>
+                <div class="relative w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    <div class="absolute w-4 h-4 border-[3px] border-[#0F172A] rounded-sm transform rotate-45 -translate-x-1.5"></div>
+                    <div class="absolute w-4 h-4 border-[3px] border-[#F59E0B] rounded-sm transform rotate-45 translate-x-1.5"></div>
                 </div>
                 <div class="leading-none">
-                    <span class="text-base font-black tracking-tight text-[#0F172A] block uppercase">Advance</span>
-                    <span class="text-base font-black tracking-tight text-[#EAB308] block uppercase -mt-0.5">America</span>
+                    <span class="text-sm font-black tracking-tight text-[#0F172A] block uppercase">Advance</span>
+                    <span class="text-sm font-black tracking-tight text-[#F59E0B] block uppercase -mt-0.5">America</span>
                 </div>
             </div>
-            <!-- Trust Vectors -->
-            <div class="flex items-center space-x-3">
-                <div class="flex items-center space-x-1.5 border-r pr-4 border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <span class="px-1.5 py-0.5 border border-slate-300 rounded bg-slate-50">FDIC Insured</span>
-                    <span class="px-1.5 py-0.5 border border-amber-300 rounded bg-amber-50 text-amber-700">BBB A+ Rated</span>
-                </div>
-                <span class="text-xs text-slate-500 font-medium">Secure Portal</span>
+            <div class="flex items-center space-x-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span class="px-2 py-0.5 border border-slate-200 rounded bg-slate-50">FDIC Insured</span>
+                <span class="px-2 py-0.5 border border-amber-200 rounded bg-amber-50 text-amber-700">BBB A+</span>
             </div>
         </div>
     </header>
 
-    <!-- INTERFACE 1: LENDER GENERATION DASHBOARD -->
-    <main id="lenderDashboard" class="max-w-3xl mx-auto px-4 py-10 no-print">
+    <!-- INTERFACE 1: LENDER DASHBOARD -->
+    <main id="lenderDashboard" class="max-w-3xl mx-auto px-4 py-8 no-print">
         <div class="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
             <div class="bg-slate-900 p-6 text-white">
-                <h1 class="text-xl font-bold">Loan Agreement Generation Engine</h1>
-                <p class="text-xs text-slate-400 mt-1">Input borrower metrics to generate a legally binding unique signing URL.</p>
+                <h1 class="text-lg font-bold">Loan Agreement Portal</h1>
+                <p class="text-xs text-slate-400 mt-0.5">Enter loan parameters below to generate a secure borrower signature link.</p>
             </div>
             
-            <div class="p-6 space-y-6">
-                <!-- Borrower Details -->
+            <div class="p-6 space-y-5">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Borrower Full Name</label>
-                        <input type="text" id="setupName" value="John Doe" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none">
+                        <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Borrower Full Name</label>
+                        <input type="text" id="setupName" value="John Doe" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Email Address</label>
-                        <input type="email" id="setupEmail" value="borrower@example.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none">
+                        <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Email Address</label>
+                        <input type="email" id="setupEmail" value="borrower@example.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 text-sm">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Physical Address</label>
-                        <input type="text" id="setupAddress" value="742 Evergreen Terrace, Los Angeles, CA" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none">
+                        <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Physical Address</label>
+                        <input type="text" id="setupAddress" value="123 Main Street, Los Angeles, CA" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 text-sm">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Disbursement Bank Name & Routing Info</label>
-                        <input type="text" id="setupBank" value="Chase Bank (Acc: *******5678)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none">
+                        <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Bank Name & Account Info</label>
+                        <input type="text" id="setupBank" value="Chase Bank (Acc: *******5678)" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 text-sm">
                     </div>
                 </div>
 
-                <hr class="border-slate-100">
-
-                <!-- Loan Parameters -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Loan Amount ($)</label>
-                        <input type="number" id="setupAmount" value="5000" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none font-bold">
+                        <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Loan Amount ($)</label>
+                        <input type="number" id="setupAmount" value="5000" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 font-bold text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tenure (12 - 60 Mos)</label>
-                        <input type="number" id="setupTenure" value="12" min="12" max="60" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none font-bold">
+                        <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Tenure (12-60 Mos)</label>
+                        <input type="number" id="setupTenure" value="12" min="12" max="60" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 font-bold text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-500 mb-1">First Payment Date</label>
-                        <input type="date" id="setupFirstDate" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none">
+                        <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">First Due Date</label>
+                        <input type="date" id="setupFirstDate" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-slate-900 text-sm">
                     </div>
                 </div>
 
-                <button onclick="generateBorrowerLink()" class="w-full bg-slate-900 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition shadow-md">
-                    Generate Secure Signing Link
+                <button onclick="generateLink()" class="w-full bg-slate-950 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition text-sm shadow">
+                    Generate Secure Link
                 </button>
 
-                <!-- Generated Link Container -->
                 <div id="linkContainer" class="hidden p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
-                    <span class="block text-xs font-bold text-amber-800 uppercase tracking-wider">Generated Agreement Link:</span>
+                    <span class="block text-[11px] font-bold text-amber-800 uppercase tracking-wider">Share this specific link with borrower:</span>
                     <div class="flex space-x-2">
-                        <input type="text" id="generatedUrlOutput" readonly class="w-full bg-white px-3 py-2 border border-amber-300 rounded-lg text-xs font-mono text-slate-700">
-                        <button onclick="copyGeneratedLink()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-lg text-xs transition">Copy</button>
+                        <input type="text" id="urlOutput" readonly class="w-full bg-white px-3 py-2 border border-amber-300 rounded-lg text-xs font-mono text-slate-700">
+                        <button onclick="copyLink()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-lg text-xs transition">Copy</button>
                     </div>
-                    <p class="text-[11px] text-amber-700">Send this link to the borrower. They will see the formal contract, can sign it dynamically, and download the verified final PDF copy instantly.</p>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- INTERFACE 2: BORROWER VIEW & SIGN PORTAL -->
-    <main id="borrowerPortal" class="hidden max-w-5xl mx-auto px-4 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        <!-- Main Document Area -->
-        <section class="lg:col-span-8 bg-white p-8 rounded-2xl border border-slate-200 shadow-xl relative" id="printableAgreementArea">
-            
-            <!-- Document Header Block -->
-            <div class="text-center border-b-2 border-slate-900 pb-6 mb-6">
-                <!-- Watermark Logo inside PDF -->
-                <div class="flex items-center justify-center space-x-2 mb-2">
-                    <div class="w-4 h-4 border-[2.5px] border-slate-900 rounded-sm transform rotate-45"></div>
-                    <span class="font-black text-xs uppercase tracking-widest text-slate-900">Advance America Secured Financing Matrix</span>
-                </div>
-                <h1 class="text-xl font-black uppercase tracking-tight text-slate-900">Promissory Note & Commercial Loan Agreement</h1>
-                <p class="text-[10px] text-slate-400 tracking-widest uppercase mt-0.5">Federal Truth-In-Lending Regulation (TILA) Disclosures</p>
+    <!-- INTERFACE 2: BORROWER SIGN PORTAL -->
+    <main id="borrowerPortal" class="hidden max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <section class="lg:col-span-8 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xl" id="pdfArea">
+            <div class="text-center border-b-2 border-slate-950 pb-4 mb-6">
+                <h1 class="text-lg font-black uppercase text-slate-900 tracking-tight">Promissory Note & Loan Agreement</h1>
+                <p class="text-[9px] text-slate-400 tracking-widest uppercase mt-0.5">Advance America Verified Credit Instrument</p>
             </div>
 
-            <!-- TILA Disclosure Row Grid Box -->
+            <!-- TILA DISCLOSURES -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 text-center text-xs">
-                <div class="border border-slate-200 p-2.5 bg-slate-50 rounded-lg">
-                    <span class="block text-[9px] uppercase font-bold text-slate-400">Total Borrowed Amount</span>
+                <div class="border border-slate-200 p-2 bg-slate-50 rounded-lg">
+                    <span class="block text-[9px] uppercase font-bold text-slate-400">Loan Principal</span>
                     <span id="lblGross" class="text-base font-black text-slate-900">$0.00</span>
                 </div>
-                <div class="border border-slate-200 p-2.5 bg-slate-50 rounded-lg">
-                    <span class="block text-[9px] uppercase font-bold text-slate-400">Annual Percentage Rate</span>
+                <div class="border border-slate-200 p-2 bg-slate-50 rounded-lg">
+                    <span class="block text-[9px] uppercase font-bold text-slate-400">APR Rate</span>
                     <span id="lblApr" class="text-base font-black text-amber-600">0.00%</span>
                 </div>
-                <div class="border border-slate-200 p-2.5 bg-slate-50 rounded-lg">
-                    <span class="block text-[9px] uppercase font-bold text-slate-400">Monthly Payment (EMI)</span>
+                <div class="border border-slate-200 p-2 bg-slate-50 rounded-lg">
+                    <span class="block text-[9px] uppercase font-bold text-slate-400">Monthly EMI</span>
                     <span id="lblEmi" class="text-base font-black text-slate-900">$0.00</span>
                 </div>
-                <div class="border border-slate-200 p-2.5 bg-slate-50 rounded-lg">
-                    <span class="block text-[9px] uppercase font-bold text-slate-400">Total Cost of Loan</span>
+                <div class="border border-slate-200 p-2 bg-slate-50 rounded-lg">
+                    <span class="block text-[9px] uppercase font-bold text-slate-400">Total Loan Cost</span>
+                    <span id="lblTotalCost" class="text-base font-black text-slate-900">$0.00</span>
+                </div>
+            </div>
+
+            <div class="space-y-4 text-[11px] text-slate-700 leading-relaxed text-justify">
+                <p>This document constitutes a binding credit arrangement between lender <strong>Advance America</strong> and borrower <span id="lblBName" class="font-bold underline"></span>, residing at <span id="lblBAddr" class="font-bold underline"></span>.</p>
+                
+                <h3 class="text-xs font-bold uppercase border-b pb-0.5 text-slate-900">1. Principal & Administrative Processing Fees</h3>
+                <p>The principal balance issued is <span id="txtPrincipal" class="font-bold"></span>, including a <strong>2.50% integrated processing fee</strong> of <span id="txtFee" class="font-bold"></span>. Funds will be directly disbursed to <span id="lblBBank" class="font-bold underline"></span>.</p>
+
+                <h3 class="text-xs font-bold uppercase border-b pb-0.5 text-slate-900">2. Flat Interest Calculation & Timelines</h3>
+                <p>Interest tracks at an annual <strong>8.00% flat rate</strong>. Total interest over a loan length of <span id="txtTenure" class="font-bold"></span> months equates to <span id="txtTotalInterest" class="font-bold"></span>. Payments of <span id="txtEMI" class="font-bold"></span> are due monthly starting on <span id="txtFirstDate" class="font-bold"></span>, running through the final payoff date of <span id="txtPaidOffDate" class="font-bold"></span>.</p>
+
+                <h3 class="text-xs font-bold uppercase border-b pb-0.5 text-slate-900">3. Underwriting Standards & Capacity Review</h3>
