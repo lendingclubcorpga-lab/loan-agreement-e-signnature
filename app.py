@@ -465,7 +465,7 @@ with st.sidebar:
     rate = st.number_input("Interest rate (% per year)", min_value=1.0, max_value=36.0, value=8.0, step=0.25,
                            help="Check the maximum rate allowed in your state.")
     first = st.date_input("First installment date", value=add_months(date.today(), 1), min_value=date.today())
-    days = st.slider("Link valid for (days)", 1, 30, 7)
+    days = st.slider("Link valid for (days)", 1, 30, 1)
 
 st.subheader("Borrower")
 c1, c2 = st.columns(2)
