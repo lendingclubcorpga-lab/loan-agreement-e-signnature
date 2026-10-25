@@ -454,7 +454,7 @@ if st.text_input("Lender password", type="password") != ADMIN_PW:
 
 with st.sidebar:
     st.header("Lender")
-    biz = st.text_input("Business name", "Your Business Name")
+    biz = st.text_input("Business name", "ADVANCE AMERICA")
     lic = st.text_input("License / registration no.", "License No. ____________")
     st.header("Loan")
     principal = st.number_input("Loan amount ($)", min_value=100.0, max_value=250000.0, value=5000.0, step=100.0)
@@ -467,20 +467,23 @@ with st.sidebar:
     first = st.date_input("First installment date", value=add_months(date.today(), 1), min_value=date.today())
     days = st.slider("Link valid for (days)", 1, 30, 1)
 
-st.subheader("Borrower")
-c1, c2 = st.columns(2)
-borrower = c1.text_input("Full name")
-email = c2.text_input("Email")
-addr = st.text_input("Address")
-bank = st.text_input("Bank name", help="The borrower's bank where funds will be sent. Bank name only; do not enter account numbers here.")
-
 r, rows = build(principal, months, first, rate / 100, method)
 summary(principal, months, first, r, rows)
 
-st.subheader("Create signing link")
-if st.button("Generate link", type="primary"):
-    if not (borrower.strip() and email.strip() and addr.strip() and bank.strip() and biz.strip()):
-        st.error("Fill in the business name and the borrower's name, email, address and bank name first.")
+st.subheader("Borrower")
+with st.form("borrower_form", border=False):
+    c1, c2 = st.columns(2)
+    borrower = c1.text_input("Full name")
+    email = c2.text_input("Email")
+    addr = st.text_input("Address")
+    bank = st.text_input("Bank name", help="The borrower's bank where funds will be sent. Bank name only; do not enter account numbers here.")
+    go = st.form_submit_button("Generate link", type="primary")
+
+if go:
+    missing = [n for n, v in [("business name (left sidebar)", biz), ("full name", borrower), ("email", email),
+                              ("address", addr), ("bank name", bank)] if not v.strip()]
+    if missing:
+        st.error("Still missing: " + ", ".join(missing) + ".")
     else:
         payload = dict(biz=biz.strip(), lic=lic.strip(), borrower=borrower.strip(), email=email.strip(), bank=bank.strip(),
                        addr=addr.strip(), principal=principal, months=months, rate=rate, method=method, first=first.isoformat(),
