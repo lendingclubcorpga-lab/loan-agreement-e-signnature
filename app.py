@@ -3,6 +3,8 @@ import base64
 import io
 import json
 import os
+import random
+import re
 import tempfile
 import zlib
 from datetime import date
@@ -212,7 +214,7 @@ def kv(pdf, k, v):
     pdf.cell(0, 6, v, border="B", new_x="LMARGIN", new_y="NEXT")
 
 
-def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows, signer):
+def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows, signer, bank=""):
     pdf = Doc(format="A4")
     pdf.biz, pdf.lic = biz, lic
     pdf.set_margins(12, 12, 12)
@@ -228,6 +230,8 @@ def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows,
     kv(pdf, "Borrower", borrower)
     kv(pdf, "Address", addr)
     kv(pdf, "Email", email)
+    if bank:
+        kv(pdf, "Disbursement bank", bank)
 
     h(pdf, "2. Federal loan disclosures")
     for k, v in [("Annual percentage rate (APR)", f"{r['apr'] * 100:.2f}%"),
@@ -302,6 +306,46 @@ def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows,
 
 
 
+def name_parts(full):
+    t = full.split()
+    return (t[0], t[-1] if len(t) > 1 else "") if t else ("", "")
+
+
+def pdf_filename(full):
+    first, last = name_parts(full)
+    name = re.sub(r'[\\/:*?"<>|]+', "", f"{first} {last}").strip() or "Borrower"
+    return f"Loan Agreement {name}.pdf"
+
+
+def make_short(long_url, full_name):
+    """Ask is.gd for a short link that includes the borrower's first and last name. Returns a URL or None."""
+    import urllib.parse
+    import urllib.request
+    first, last = name_parts(full_name)
+    clean = lambda x: re.sub(r"[^A-Za-z0-9]", "", x)
+    base = "_".join(p for p in (clean(first), clean(last)) if p) or "Loan"
+    if len(base) < 5:
+        base = (base + "_Loan")[:30]
+    base = base[:24]
+    tries = [base, f"{base}_{random.randint(100, 999)}", f"{base}_{random.randint(1000, 9999)}", None]
+    for alias in tries:
+        api = "https://is.gd/create.php?format=simple&url=" + urllib.parse.quote(long_url, safe="")
+        if alias:
+            api += "&shorturl=" + alias
+        try:
+            req = urllib.request.Request(api, headers={"User-Agent": "loan-agreement-app"})
+            out = urllib.request.urlopen(req, timeout=10).read().decode().strip()
+        except Exception as e:
+            out = getattr(e, "read", lambda: b"")().decode(errors="ignore").strip() or "Error: unreachable"
+        if out.startswith("http"):
+            return out
+        if "Error" in out and ("already" in out or "taken" in out or "short URL" in out) and alias:
+            continue
+        if "unreachable" in out:
+            return None
+    return None
+
+
 def secret(key):
     try:
         return st.secrets[key]
@@ -321,7 +365,7 @@ def pack(d):
     raw = json.dumps([d["biz"], d["lic"], d["borrower"], d["email"], d["addr"], int(p) if p == int(p) else p,
                       d["months"], d["rate"], date.fromisoformat(d["first"]).toordinal(),
                       date.fromisoformat(d["exp"]).toordinal(),
-                      "f" if d.get("method") == "flat" else "r"], separators=(",", ":")).encode()
+                      "f" if d.get("method") == "flat" else "r", d.get("bank", "")], separators=(",", ":")).encode()
     nonce = os.urandom(12)
     ct = AESGCM(base64.urlsafe_b64decode(FKEY)).encrypt(nonce, zlib.compress(raw, 9), None)
     return base64.urlsafe_b64encode(nonce + ct).decode().rstrip("=")
@@ -332,7 +376,8 @@ def unpack(tok):
     v = json.loads(zlib.decompress(AESGCM(base64.urlsafe_b64decode(FKEY)).decrypt(b[:12], b[12:], None)))
     return dict(biz=v[0], lic=v[1], borrower=v[2], email=v[3], addr=v[4], principal=v[5], months=v[6],
                 rate=v[7], first=date.fromordinal(v[8]).isoformat(), exp=date.fromordinal(v[9]).isoformat(),
-                method="reducing" if len(v) > 10 and v[10] == "r" else "flat")
+                method="reducing" if len(v) > 10 and v[10] == "r" else "flat",
+                bank=v[11] if len(v) > 11 else "")
 
 
 def summary(principal, months, first, r, rows):
@@ -375,6 +420,8 @@ if token:
     st.title("Loan Agreement")
     st.caption(f"{d['biz']} - {d['lic']}")
     st.write(f"Prepared for **{d['borrower']}**. Please review everything below, then sign at the bottom.")
+    if d.get("bank"):
+        st.write(f"Disbursement bank: **{d['bank']}**")
     summary(d["principal"], d["months"], first, r, rows)
     with st.expander("Terms and conditions", expanded=False):
         for i, (t, body) in enumerate(terms_for(r["method"]), 1):
@@ -388,8 +435,8 @@ if token:
             st.success("Signature captured.")
             png = base64.b64decode(sig.split(",", 1)[1])
             pdf = make_pdf(d["biz"], d["lic"], d["borrower"], d["addr"], d["email"], d["principal"],
-                           d["months"], first, r, rows, png)
-            st.download_button("Download signed agreement (PDF)", pdf, file_name="loan_agreement.pdf", mime="application/pdf")
+                           d["months"], first, r, rows, png, d.get("bank", ""))
+            st.download_button("Download signed agreement (PDF)", pdf, file_name=pdf_filename(d["borrower"]), mime="application/pdf")
         else:
             st.info("Download unlocks after your signature is captured.")
     st.stop()
@@ -407,11 +454,11 @@ if st.text_input("Lender password", type="password") != ADMIN_PW:
 
 with st.sidebar:
     st.header("Lender")
-    biz = st.text_input("Business name", "ADVANCE AMERICA")
+    biz = st.text_input("Business name", "Your Business Name")
     lic = st.text_input("License / registration no.", "License No. ____________")
     st.header("Loan")
     principal = st.number_input("Loan amount ($)", min_value=100.0, max_value=250000.0, value=5000.0, step=100.0)
-    months = st.slider("Tenure (months)", 12, 60, 36)
+    months = st.slider("Tenure (months)", 12, 60, 12)
     method_label = st.radio("Interest method", ["Reducing balance (standard)", "Flat rate"],
                             help="Reducing balance charges interest only on the unpaid balance. Flat charges it on the full principal for the whole term.")
     method = "reducing" if method_label.startswith("Reducing") else "flat"
@@ -425,37 +472,35 @@ c1, c2 = st.columns(2)
 borrower = c1.text_input("Full name")
 email = c2.text_input("Email")
 addr = st.text_input("Address")
+bank = st.text_input("Bank name", help="The borrower's bank where funds will be sent. Bank name only; do not enter account numbers here.")
 
 r, rows = build(principal, months, first, rate / 100, method)
 summary(principal, months, first, r, rows)
 
 st.subheader("Create signing link")
 if st.button("Generate link", type="primary"):
-    if not (borrower.strip() and email.strip() and addr.strip() and biz.strip()):
-        st.error("Fill in the business name and the borrower's name, email and address first.")
+    if not (borrower.strip() and email.strip() and addr.strip() and bank.strip() and biz.strip()):
+        st.error("Fill in the business name and the borrower's name, email, address and bank name first.")
     else:
-        payload = dict(biz=biz.strip(), lic=lic.strip(), borrower=borrower.strip(), email=email.strip(),
+        payload = dict(biz=biz.strip(), lic=lic.strip(), borrower=borrower.strip(), email=email.strip(), bank=bank.strip(),
                        addr=addr.strip(), principal=principal, months=months, rate=rate, method=method, first=first.isoformat(),
                        exp=date.fromordinal(date.today().toordinal() + days).isoformat())
         tok = pack(payload)
         base = APP_URL or "https://YOUR-APP-URL.streamlit.app"
-        st.session_state["link"] = f"{base}/?k={tok}"
-        st.session_state.pop("short", None)
+        long_url = f"{base}/?k={tok}"
+        st.session_state["link"] = long_url
+        st.session_state["short"] = make_short(long_url, borrower.strip())
 if st.session_state.get("link"):
-    st.code(st.session_state["link"], language=None)
-    st.caption("Send this link to the borrower. It is encrypted, cannot be edited, and expires on the date set. "
+    short = st.session_state.get("short")
+    if short:
+        st.write("Send this link to the borrower:")
+        st.code(short, language=None)
+    else:
+        st.warning("The short-link service could not be reached, so here is the full link. "
+                   "You can paste it into tinyurl.com or bit.ly to shorten it.")
+        st.code(st.session_state["link"], language=None)
+    st.caption("The link is encrypted, cannot be edited, and expires on the date set. "
                "Signed copies are not stored here; the borrower downloads the PDF and should send it back to you.")
-    if st.button("Make shorter link"):
-        try:
-            import urllib.parse
-            import urllib.request
-            api = "https://is.gd/create.php?format=simple&url=" + urllib.parse.quote(st.session_state["link"], safe="")
-            short = urllib.request.urlopen(api, timeout=10).read().decode().strip()
-            if not short.startswith("http"):
-                raise ValueError(short)
-            st.session_state["short"] = short
-        except Exception:
-            st.warning("The shortener could not be reached. Paste the link above into tinyurl.com or bit.ly instead.")
-    if st.session_state.get("short"):
-        st.code(st.session_state["short"], language=None)
-        st.caption("Short link. It redirects to the long link above, so both work the same way.")
+    if short:
+        with st.expander("Full link (backup)"):
+            st.code(st.session_state["link"], language=None)
