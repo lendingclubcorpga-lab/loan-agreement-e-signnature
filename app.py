@@ -98,12 +98,12 @@ def money(x):
     return f"${x:,.2f}"
 
 
-def solve_apr(net, emi, months):
-    """Newton-Raphson on the monthly rate, APR = monthly rate x 12."""
+def solve_apr(net, payments):
+    """Newton-Raphson on the monthly rate for the actual payment stream; APR = monthly rate x 12."""
     i = 0.01
     for _ in range(200):
-        f = sum(emi / (1 + i) ** k for k in range(1, months + 1)) - net
-        df = sum(-k * emi / (1 + i) ** (k + 1) for k in range(1, months + 1))
+        f = sum(p / (1 + i) ** k for k, p in enumerate(payments, 1)) - net
+        df = sum(-k * p / (1 + i) ** (k + 1) for k, p in enumerate(payments, 1))
         nxt = i - f / df
         if abs(nxt - i) < 1e-14:
             i = nxt
@@ -112,27 +112,42 @@ def solve_apr(net, emi, months):
     return i * 12
 
 
-def build(principal, months, first, rate=ANNUAL_RATE):
+def build(principal, months, first, rate=ANNUAL_RATE, method="reducing"):
     fee = principal * FEE_RATE
-    interest = principal * rate * months / 12
-    emi = (principal + interest) / months
     net = principal - fee
-    apr = solve_apr(net, emi, months)
-    rows, bal = [], principal + interest
-    for k in range(months):
-        bal = max(bal - emi, 0.0)
-        if abs(bal) < 1e-9:
-            bal = 0.0
-        rows.append([k + 1, add_months(first, k).strftime("%b %d, %Y"), emi, principal / months, interest / months, bal])
-    r = dict(rate=rate, fee=fee, interest=interest, emi=emi, net=net, apr=apr, total=emi * months,
-             finance_charge=interest + fee, last=add_months(first, months - 1))
+    rows = []
+    if method == "flat":
+        interest = principal * rate * months / 12
+        emi = (principal + interest) / months
+        bal = principal + interest
+        for k in range(months):
+            bal = max(bal - emi, 0.0)
+            if abs(bal) < 1e-9:
+                bal = 0.0
+            rows.append([k + 1, add_months(first, k).strftime("%b %d, %Y"), emi, principal / months, interest / months, bal])
+    else:
+        i = rate / 12
+        emi = principal / months if i == 0 else principal * i / (1 - (1 + i) ** -months)
+        bal, interest = principal, 0.0
+        for k in range(months):
+            it = bal * i
+            pr = emi - it
+            bal = max(bal - pr, 0.0)
+            if abs(bal) < 1e-9:
+                bal = 0.0
+            interest += it
+            rows.append([k + 1, add_months(first, k).strftime("%b %d, %Y"), emi, pr, it, bal])
+    total = emi * months
+    apr = solve_apr(net, [emi] * months)
+    r = dict(method=method, rate=rate, fee=fee, interest=interest, emi=emi, net=net, apr=apr, total=total,
+             finance_charge=interest + fee, total_cost=total + fee, last=add_months(first, months - 1))
     return r, rows
 
 
 TERMS = [
     ("Promise to pay", "The Borrower promises to pay the Lender the Total of Payments shown in this Agreement in equal monthly installments on the due dates in the Payment Schedule."),
     ("Processing fee", "A one-time administrative processing fee is included in the financing and is deducted from the loan proceeds. It is part of the finance charge and is not refundable once funds are released."),
-    ("Interest", "Interest is a flat rate calculated on the original principal for the full term. It does not reduce as installments are paid."),
+    ("Interest", "INTEREST_TEXT"),
     ("Credit evaluation and repayment capacity", "The Lender may review credit reports and the Borrower's income and debts to assess repayment capacity. Funding depends on that review and on the Borrower's ability to repay. The Lender may decline or cancel an application before funds are released."),
     ("Late payment", "If an installment is not received within the grace period stated by the Lender, the Lender may charge a late fee allowed by applicable law. Late fee amount: ____________ (Lender to complete)."),
     ("Prepayment", "The Borrower may prepay all or part of the loan at any time. Prepayment terms and any refund of unearned charges follow applicable law: ____________ (Lender to complete)."),
@@ -144,6 +159,16 @@ TERMS = [
     ("Governing law", "This Agreement is governed by the laws of: ____________ (Lender to complete) and any applicable federal law, including the Truth in Lending Act."),
     ("Entire agreement and severability", "This is the complete agreement between the parties. If any part is found unenforceable, the rest remains in effect. Changes must be in writing and signed by both parties."),
 ]
+
+
+INTEREST_TEXT = {
+    "flat": "Interest is a flat rate calculated on the original principal for the full term. It does not reduce as installments are paid.",
+    "reducing": "Interest accrues each month at the annual rate divided by twelve on the unpaid principal balance. Each installment first pays the interest accrued that month and the rest reduces principal, so the interest portion falls and the principal portion rises over the term.",
+}
+
+
+def terms_for(method):
+    return [(t, INTEREST_TEXT[method] if body == "INTEREST_TEXT" else body) for t, body in TERMS]
 
 
 class Doc(FPDF):
@@ -206,7 +231,7 @@ def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows,
 
     h(pdf, "2. Federal loan disclosures")
     for k, v in [("Annual percentage rate (APR)", f"{r['apr'] * 100:.2f}%"),
-                 ("Finance charge", money(r["finance_charge"])),
+                 ("Finance charge (interest + fee)", money(r["finance_charge"])),
                  ("Amount financed (net cash to Borrower)", money(r["net"])),
                  ("Total of payments", money(r["total"]))]:
         kv(pdf, k, v)
@@ -214,10 +239,11 @@ def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows,
     h(pdf, "3. Loan terms")
     for k, v in [("Principal", money(principal)),
                  ("Processing fee (2.50%, included in loan)", money(r["fee"])),
-                 (f"Flat interest ({r['rate'] * 100:.2f}% per year)", money(r["interest"])),
-                 ("Total cost of loan (interest + fee)", money(r["finance_charge"])),
+                 (f"Total interest ({r['rate'] * 100:.2f}% per year, {'flat' if r['method'] == 'flat' else 'reducing balance'})", money(r["interest"])),
+                 ("Total repayment (principal + interest)", money(r["total"])),
+                 ("Total cost of loan (repayment + fee)", money(r["total_cost"])),
                  ("Tenure", f"{months} months"),
-                 ("Monthly installment (EMI)", money(r["emi"])),
+                 ("Monthly installment", money(r["emi"])),
                  ("First installment due", first.strftime("%B %d, %Y")),
                  ("Paid-off date (final installment)", r["last"].strftime("%B %d, %Y"))]:
         kv(pdf, k, v)
@@ -249,7 +275,7 @@ def make_pdf(biz, lic, borrower, addr, email, principal, months, first, r, rows,
     pdf.ln(8)
 
     h(pdf, "5. Terms and conditions")
-    for i, (t, body) in enumerate(TERMS, 1):
+    for i, (t, body) in enumerate(terms_for(r["method"]), 1):
         pdf.set_font("Helvetica", "B", 9)
         pdf.multi_cell(0, 5, f"5.{i} {t}", new_x="LMARGIN", new_y="NEXT")
         pdf.set_font("Helvetica", "", 8.8)
@@ -294,7 +320,8 @@ def pack(d):
     p = d["principal"]
     raw = json.dumps([d["biz"], d["lic"], d["borrower"], d["email"], d["addr"], int(p) if p == int(p) else p,
                       d["months"], d["rate"], date.fromisoformat(d["first"]).toordinal(),
-                      date.fromisoformat(d["exp"]).toordinal()], separators=(",", ":")).encode()
+                      date.fromisoformat(d["exp"]).toordinal(),
+                      "f" if d.get("method") == "flat" else "r"], separators=(",", ":")).encode()
     nonce = os.urandom(12)
     ct = AESGCM(base64.urlsafe_b64decode(FKEY)).encrypt(nonce, zlib.compress(raw, 9), None)
     return base64.urlsafe_b64encode(nonce + ct).decode().rstrip("=")
@@ -304,19 +331,24 @@ def unpack(tok):
     b = base64.urlsafe_b64decode(tok + "=" * (-len(tok) % 4))
     v = json.loads(zlib.decompress(AESGCM(base64.urlsafe_b64decode(FKEY)).decrypt(b[:12], b[12:], None)))
     return dict(biz=v[0], lic=v[1], borrower=v[2], email=v[3], addr=v[4], principal=v[5], months=v[6],
-                rate=v[7], first=date.fromordinal(v[8]).isoformat(), exp=date.fromordinal(v[9]).isoformat())
+                rate=v[7], first=date.fromordinal(v[8]).isoformat(), exp=date.fromordinal(v[9]).isoformat(),
+                method="reducing" if len(v) > 10 and v[10] == "r" else "flat")
 
 
 def summary(principal, months, first, r, rows):
     a, b, c = st.columns(3)
-    a.metric("Monthly installment", money(r["emi"]))
+    a.metric("Monthly payment", money(r["emi"]))
     b.metric("APR", f"{r['apr'] * 100:.2f}%")
-    c.metric("Total of payments", money(r["total"]))
-    a.metric("Processing fee", money(r["fee"]))
-    b.metric("Interest", money(r["interest"]))
-    c.metric("Amount financed", money(r["net"]))
-    st.write(f"Total cost of loan **{money(r['finance_charge'])}**. First installment **{first:%B %d, %Y}**. "
-             f"Final installment and paid-off date **{r['last']:%B %d, %Y}**.")
+    c.metric("Net cash to borrower", money(r["net"]))
+    a.metric("Processing fee (2.5%)", money(r["fee"]))
+    b.metric("Total interest", money(r["interest"]))
+    c.metric("Total repayment", money(r["total"]))
+    a.metric("Total cost of loan", money(r["total_cost"]))
+    b.metric("First payment", f"{first:%b %d, %Y}")
+    c.metric("Payoff date", f"{r['last']:%b %d, %Y}")
+    st.caption("Total cost of loan = total repayment + processing fee. "
+               + ("Interest is charged on the remaining balance." if r["method"] == "reducing"
+                  else "Interest is a flat amount on the original principal."))
     df = pd.DataFrame(rows, columns=["Month", "Due date", "Payment", "Principal", "Interest", "Balance"])
     st.dataframe(df.style.format({c: "${:,.2f}" for c in ["Payment", "Principal", "Interest", "Balance"]}),
                  hide_index=True, width="stretch")
@@ -339,13 +371,13 @@ if token:
         st.error("This link has expired. Ask the lender for a new one.")
         st.stop()
     first = date.fromisoformat(d["first"])
-    r, rows = build(d["principal"], d["months"], first, d.get("rate", 8.0) / 100)
+    r, rows = build(d["principal"], d["months"], first, d.get("rate", 8.0) / 100, d.get("method", "flat"))
     st.title("Loan Agreement")
     st.caption(f"{d['biz']} - {d['lic']}")
     st.write(f"Prepared for **{d['borrower']}**. Please review everything below, then sign at the bottom.")
     summary(d["principal"], d["months"], first, r, rows)
     with st.expander("Terms and conditions", expanded=False):
-        for i, (t, body) in enumerate(TERMS, 1):
+        for i, (t, body) in enumerate(terms_for(r["method"]), 1):
             st.markdown(f"**{i}. {t}**  \n{body}")
     st.subheader("Sign")
     with st.container(border=True):
@@ -380,8 +412,11 @@ with st.sidebar:
     st.header("Loan")
     principal = st.number_input("Loan amount ($)", min_value=100.0, max_value=250000.0, value=5000.0, step=100.0)
     months = st.slider("Tenure (months)", 12, 60, 12)
-    rate = st.number_input("Flat interest rate (% per year)", min_value=1.0, max_value=36.0, value=8.0, step=0.25,
-                           help="Flat rate on the original principal. Check the maximum rate allowed in your state.")
+    method_label = st.radio("Interest method", ["Reducing balance (standard)", "Flat rate"],
+                            help="Reducing balance charges interest only on the unpaid balance. Flat charges it on the full principal for the whole term.")
+    method = "reducing" if method_label.startswith("Reducing") else "flat"
+    rate = st.number_input("Interest rate (% per year)", min_value=1.0, max_value=36.0, value=8.0, step=0.25,
+                           help="Check the maximum rate allowed in your state.")
     first = st.date_input("First installment date", value=add_months(date.today(), 1), min_value=date.today())
     days = st.slider("Link valid for (days)", 1, 30, 7)
 
@@ -391,7 +426,7 @@ borrower = c1.text_input("Full name")
 email = c2.text_input("Email")
 addr = st.text_input("Address")
 
-r, rows = build(principal, months, first, rate / 100)
+r, rows = build(principal, months, first, rate / 100, method)
 summary(principal, months, first, r, rows)
 
 st.subheader("Create signing link")
@@ -400,7 +435,7 @@ if st.button("Generate link", type="primary"):
         st.error("Fill in the business name and the borrower's name, email and address first.")
     else:
         payload = dict(biz=biz.strip(), lic=lic.strip(), borrower=borrower.strip(), email=email.strip(),
-                       addr=addr.strip(), principal=principal, months=months, rate=rate, first=first.isoformat(),
+                       addr=addr.strip(), principal=principal, months=months, rate=rate, method=method, first=first.isoformat(),
                        exp=date.fromordinal(date.today().toordinal() + days).isoformat())
         tok = pack(payload)
         base = APP_URL or "https://YOUR-APP-URL.streamlit.app"
