@@ -151,14 +151,14 @@ TERMS = [
     ("Processing fee", "A one-time administrative processing fee is included in the financing and is deducted from the loan proceeds. It is part of the finance charge and is not refundable once funds are released."),
     ("Interest", "INTEREST_TEXT"),
     ("Credit evaluation and repayment capacity", "The Lender may review credit reports and the Borrower's income and debts to assess repayment capacity. Funding depends on that review and on the Borrower's ability to repay. The Lender may decline or cancel an application before funds are released."),
-    ("Late payment", "If an installment is not received within the grace period stated by the Lender, the Lender may charge a late fee allowed by applicable law. Late fee amount: ____________ (Lender to complete)."),
-    ("Prepayment", "The Borrower may prepay all or part of the loan at any time. Prepayment terms and any refund of unearned charges follow applicable law: ____________ (Lender to complete)."),
+    ("Late payment", "If an installment is not received within the grace period stated by the Lender, the Lender may charge a late fee allowed by applicable law. Late fee amount:$35"),
+    ("Prepayment", "The Borrower may prepay all or part of the loan at any time. Prepayment terms and any refund of unearned charges follow applicable law."),
     ("Default", "The Borrower is in default if any installment is more than the stated number of days past due, if information given in the application is materially false, or if the Borrower becomes insolvent. On default the Lender may require immediate payment of the unpaid balance, subject to notice rights under applicable law."),
     ("Credit reporting", "The Lender may report the account and any default to consumer reporting agencies, which can lower the Borrower's credit score."),
     ("Collection costs", "Where permitted by law, the Borrower is responsible for reasonable collection costs and court costs on a defaulted account."),
     ("Electronic signature and records", "The Borrower agrees to sign and receive this Agreement electronically. An electronic signature has the same effect as a handwritten signature. The Borrower may request a paper copy."),
     ("Privacy and data", "The Lender uses the Borrower's personal information only to evaluate, service and collect this loan and as required by law."),
-    ("Governing law", "This Agreement is governed by the laws of: ____________ (Lender to complete) and any applicable federal law, including the Truth in Lending Act."),
+    ("Governing law", "This Agreement is governed by the laws of any applicable federal law, including the Truth in Lending Act."),
     ("Entire agreement and severability", "This is the complete agreement between the parties. If any part is found unenforceable, the rest remains in effect. Changes must be in writing and signed by both parties."),
 ]
 
