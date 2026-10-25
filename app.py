@@ -458,7 +458,7 @@ with st.sidebar:
     lic = st.text_input("License / registration no.", "License No. ____________")
     st.header("Loan")
     principal = st.number_input("Loan amount ($)", min_value=100.0, max_value=250000.0, value=5000.0, step=100.0)
-    months = st.slider("Tenure (months)", 12, 60, 12)
+    months = st.slider("Tenure (months)", 12, 60, 36)
     method_label = st.radio("Interest method", ["Reducing balance (standard)", "Flat rate"],
                             help="Reducing balance charges interest only on the unpaid balance. Flat charges it on the full principal for the whole term.")
     method = "reducing" if method_label.startswith("Reducing") else "flat"
