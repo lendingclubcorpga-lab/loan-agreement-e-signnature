@@ -455,7 +455,7 @@ if st.text_input("Lender password", type="password") != ADMIN_PW:
 with st.sidebar:
     st.header("Lender")
     biz = st.text_input("Business name", "ADVANCE AMERICA")
-    lic = st.text_input("License / registration no.", "License No. ____________")
+    lic = st.text_input("License / registration no.", "License No.#100-4645")
     st.header("Loan")
     principal = st.number_input("Loan amount ($)", min_value=100.0, max_value=250000.0, value=5000.0, step=100.0)
     months = st.slider("Tenure (months)", 12, 60, 36)
